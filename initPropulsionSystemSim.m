@@ -1,4 +1,5 @@
 clear
+propepProps = load('+HybridMotor/propepinterp.mat');
 nitrousFluidTable = getNitrousFluidTable(); %Nitrous fluid properties for two phase flow model
 PAmbient = 101325; %Pa
 nitrousTankVolume = 0.8*(0.25*pi*(150e-3).^2); %m^3

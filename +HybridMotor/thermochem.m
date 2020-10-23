@@ -1,7 +1,7 @@
-function [T_flame, gamma, m_mol, R,c_star] = thermochem(OF,P_cc,etac)
+function [T_flame, gamma, m_mol, R,c_star] = thermochem(propepProps, OF,P_cc,etac)
 %interp uses X is P_cc and Y is OF
 
-propepProps = load('+HybridMotor/propepinterp.mat');
+% propepProps = load('+HybridMotor/propepinterp.mat');
 
 %T_flame = 3300;
 %gamma = 1.24;
