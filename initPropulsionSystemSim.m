@@ -23,13 +23,6 @@ sim.preInjectorPipe.diameter = 7e-3; %m
 sim.injector.singleHoleA = 0.25*pi*(1.5e-3)^2; %m^2
 sim.injector.postInjectorCrossSection = 0.25*pi*(11e-2)^2;%m^2; Area used after injector for modelled reservoir (Shouldn't matter)
 
-% nitrousTankVolume = 0.8*(0.25*pi*(150e-3).^2); %m^3
-% injectorSingleHoleA = 0.25*pi*(1.5e-3)^2; %m^2
-% feedSystemStartPressure = 64e5;
-% nominalFeedSysPipeDiam = 7e-3;
-% tankInletA = 0.25*pi*(11e-2)^2;%m^2; Area used after injector for modelled reservoir (Shouldn't matter)
-% nominalFeedSysPipeCrossSection = 0.25*pi*(nominalFeedSysPipeDiam)^2;
-
 %%
 %Combustion chamber properties
 sim.combustionChamber.OFRatioInitial = 6.5;
