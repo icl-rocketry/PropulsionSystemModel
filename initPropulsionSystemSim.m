@@ -15,6 +15,7 @@ sim.runTank.volume = 0.8*(0.25*pi*(150e-3).^2); %m^3
 sim.pipe.diameter = 7e-3; %m
 sim.pipe.crossSection = 0.25*pi*(sim.pipe.diameter)^2; %m^2
 sim.pipe.startPressure = 64e5; %Pa
+sim.pipe.mdotOxInitial = 0.3; %kg/sec
 
 sim.preInjectorPipe.diameter = 7e-3; %m
 
@@ -26,7 +27,7 @@ sim.injector.postInjectorCrossSection = 0.25*pi*(11e-2)^2;%m^2; Area used after 
 %%
 %Combustion chamber properties
 sim.combustionChamber.OFRatioInitial = 6.5;
-sim.combustionChamber.mdotOxInitial = 0.3; %kg/s
+sim.combustionChamber.mdotOxInitial = sim.pipe.mdotOxInitial; %kg/s
 sim.combustionChamber.rhoFuel = 953; %kg/m^3 (density)
 sim.combustionChamber.combustionEfficiency = 0.95;
 sim.combustionChamber.PChamberInit = 30e5;
