@@ -1,5 +1,6 @@
 clear
 clc
+applyReceiverAccumulatorPatch();
 
 %%
 %Sim fluid data
