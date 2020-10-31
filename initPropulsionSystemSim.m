@@ -1,5 +1,4 @@
 clear
-clc
 
 %%
 %Sim fluid data
