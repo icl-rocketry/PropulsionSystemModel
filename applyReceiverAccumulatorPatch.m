@@ -21,7 +21,7 @@ end
 
 disp("Copying patch file");
 [copySuccess, msg] = copyfile(localPatchFilePath, patchFilePath, 'f');
-if ~copySuccess || 1
+if ~copySuccess
    disp(msg);
    disp('----------------------------------');
    disp('Unable to copy patch file!!!!!!!!!'); 
