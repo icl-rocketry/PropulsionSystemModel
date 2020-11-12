@@ -21,9 +21,24 @@ end
 
 disp("Copying patch file");
 [copySuccess, msg] = copyfile(localPatchFilePath, patchFilePath, 'f');
-if ~copySuccess
+if ~copySuccess || 1
    disp(msg);
-   error('Unable to copy patch file'); 
+   disp('----------------------------------');
+   disp('Unable to copy patch file!!!!!!!!!'); 
+   disp('----------------------------------');
+   disp('Please MANUALLY apply the patch following the instructions at https://github.com/icl-rocketry/PropulsionSystemModel/blob/master/Patch%20for%20R2020b%20and%20R2020a/README.txt');
+   disp('When your MATLAB has been successfully patched then you run this again to proceed.');
+   disp('');
+   patchAppliedInp = input('Have you successfully applied the patch? (y/n)', 's');
+   if(patchAppliedInp == 'y')
+       disp('Creating file to remember that you have done the patch...');
+       fid = fopen(patchTestFilePath, 'w');
+       fprintf(fid, 'receiver_accumulator.sscp patched manually at %s for version %s', datestr(datetime('now')), version());
+       fclose(fid);
+       return;
+   else
+       error('Unable to patch receiver accumulator issue');
+   end
 end
 disp("Patch file copied successfully!");
 disp("Running necessary commands to refresh MATLAB...");
@@ -33,7 +48,7 @@ disp("Commands ran, patch should be applied! Creating a file to mark that the pa
 %Need to redefine var as was cleared
 makePaths();
 fid = fopen(patchTestFilePath, 'w');
-fprintf(fid, 'receiver_accumulator.sscp patched at %s', datestr(datetime('now')));
+fprintf(fid, 'receiver_accumulator.sscp patched at %s for MATLAB version %s', datestr(datetime('now')), version());
 fclose(fid);
 
     function makePaths()
