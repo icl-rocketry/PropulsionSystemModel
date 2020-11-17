@@ -13,12 +13,14 @@ sim.PAmbient = 101325; %Pa
 %%
 %Feed System properties
 sim.runTank.volume = 0.8*(0.25*pi*(150e-3).^2); %m^3
+sim.runTank.PInit = 64e5; %Pascal. Very temperature dependent. Eg. 0C->31bar, 20C->50bar, 30C->63bar
 sim.pipe.diameter = 7e-3; %m
 sim.pipe.crossSection = 0.25*pi*(sim.pipe.diameter)^2; %m^2
-sim.pipe.startPressure = 64e5; %Pa
-sim.pipe.mdotOxInitial = 0.3; %kg/sec
+sim.pipe.startPressure = 64e5; %Pa (40e5 or so for Pablo)
+sim.pipe.mdotOxInitial = 0.3; %kg/sec (0.05 or so for Pablo)
 
 sim.preInjectorPipe.diameter = 7e-3; %m
+sim.preInjectorPipe.crossSection = 0.25*pi*sim.preInjectorPipe.diameter^2; %m^2
 
 %%
 %Injector properties
@@ -44,6 +46,6 @@ sim.combustionChamber.initialFuelWebThickness = 0.0098; %m (Grain outer diam - i
 
 %%
 %Nozzle properties
-sim.nozzle.throatArea = 2.4575e-4; %m^2
-sim.nozzle.expansionRatio = 2.3325; %m^2
+sim.nozzle.throatArea = 2.4575e-4; %m^2 (4.07e-5 for Pablo)
+sim.nozzle.expansionRatio = 2.3325; %m^2 (2.6 for Pablo)
 sim.nozzle.thrustEfficiencyFactor = 0.85; %lambda
