@@ -1,6 +1,6 @@
  
-sim.extTank.volume = 9; %volume of external tank m^3
-sim.extTank.pressure = 60*10^5; %pressure of external tank Pa
+sim.extTank.volume = 1*0.25*pi*(20e-2).^2; %volume of external tank m^3
+sim.extTank.pressure = 50*10^5; %pressure of external tank Pa
 sim.fillpipe.diameter = 7e-3; %pipe connecting to external tank m
 sim.fillpipe.crossSection = 0.25*pi*(sim.fillpipe.diameter)^2; %m^2
 
