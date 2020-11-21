@@ -6,7 +6,7 @@ initFillingSystemSim()
 %Combustion products data for thermochem (load once). 
 %In global workspace so can be found by combustion products thermo block. 
 %(Maybe there's a cleaner way to do this with masks??)
-propepProps = load('+HybridMotor/propepinterp.mat');
+propepProps = load('+HybridMotor/propepPropsKeraxN2O.mat');
 sim.nitrousFluidTable = getNitrousFluidTable(); %Nitrous fluid properties for two phase flow model
 sim.PAmbient = 101325; %Pa
 
