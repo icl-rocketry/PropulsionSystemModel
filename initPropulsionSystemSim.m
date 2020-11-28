@@ -1,6 +1,6 @@
 clear
 applyReceiverAccumulatorPatch();
-initFillingSystemSim()
+%initFillingSystemSim()
 %%
 %Sim fluid data
 %Combustion products data for thermochem (load once). 
