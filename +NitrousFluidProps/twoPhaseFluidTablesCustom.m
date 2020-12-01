@@ -47,9 +47,9 @@ function varargout = twoPhaseFluidTablesCustom(varargin)
 %   v     - liquid specific volume table [m^3/kg]
 %   s     - liquid specific entropy table [kJ/(kg*K)]
 %   T     - liquid temperature table [K]
-%   NOT AVAILABLE nu    - liquid kinematic viscosity table [mm^2/s]
-%   NOT AVAILABLE k     - liquid thermal conductivity table [W/(m*K)]
-%   NOT AVAILABLE Pr    - liquid Prandtl number
+%   nu    - liquid kinematic viscosity table [mm^2/s]
+%   k     - liquid thermal conductivity table [W/(m*K)]
+%   Pr    - liquid Prandtl number
 %   u_sat - saturated liquid specific internal energy vector [kJ/kg]
 %   u     - liquid specific internal energy table [kJ/kg]
 %
@@ -58,9 +58,9 @@ function varargout = twoPhaseFluidTablesCustom(varargin)
 %   v     - vapor specific volume table [m^3/kg]
 %   s     - vapor specific entropy table [kJ/kg/K]
 %   T     - vapor temperature table [K]
-%   NOT AVAILABLE nu    - vapor kinematic viscosity table [mm^2/s]
-%   NOT AVAILABLE k     - vapor thermal conductivity table [W/(m*K)]
-%   NOT AVAILABLE Pr    - vapor Prandtl number
+%   nu    - vapor kinematic viscosity table [mm^2/s]
+%   k     - vapor thermal conductivity table [W/(m*K)]
+%   Pr    - vapor Prandtl number
 %   u_sat - saturated vapor specific internal energy vector [kJ/kg]
 %   u     - vapor specific internal energy table [kJ/kg]
 
@@ -128,11 +128,18 @@ if nargin == 7
     % Obtain fluid properties along saturation curve
     for j = 1 : n_sub
         i = mLiquid;
-        [u_sat_liq(j), v_liq(i,j), s_liq(i,j), T_liq(i,j), nu_liq(i,j), k_liq(i,j), Pr_liq(i,j)] ...
-            = saturationProperties(p(j), 0);
-        i = 1;
-        [u_sat_vap(j), v_vap(i,j), s_vap(i,j), T_vap(i,j), nu_vap(i,j), k_vap(i,j), Pr_vap(i,j)] ...
-            = saturationProperties(p(j), 1);
+        %Only define for above triple point
+        if(p(j) > p_triple)
+            [u_sat_liq(j), v_liq(i,j), s_liq(i,j), T_liq(i,j), nu_liq(i,j), k_liq(i,j), Pr_liq(i,j)] ...
+                = saturationProperties(p(j), 0);
+            i = 1;
+            [u_sat_vap(j), v_vap(i,j), s_vap(i,j), T_vap(i,j), nu_vap(i,j), k_vap(i,j), Pr_vap(i,j)] ...
+                = saturationProperties(p(j), 1);
+        else 
+            %Set invalid values
+            u_sat_liq(j) = 0;
+            u_sat_vap(j) = 0;
+        end
     end
     
     % Check that uRange covers the saturation boundaries
@@ -192,12 +199,34 @@ if nargin == 7
     % Fill in arrays with fluid properties
     for j = 1 : n
         for i = 1 : mLiquid-1
-            [v_liq(i,j), s_liq(i,j), T_liq(i,j), nu_liq(i,j), k_liq(i,j), Pr_liq(i,j)] ...
-                = fluidProperties(p(j), u_liq(i,j));
+            if(p(j) > p_triple)
+                [v_liq(i,j), s_liq(i,j), T_liq(i,j), nu_liq(i,j), k_liq(i,j), Pr_liq(i,j)] ...
+                    = fluidProperties(p(j), u_liq(i,j));
+            else
+                %TODO???
+                %Set invalid but non zero values
+                v_liq(i,j) = 1e-12;
+                s_liq(i,j) = 1e-12;
+                T_liq(i,j) = 1e-12;
+                nu_liq(i,j) = 1e-12;
+                k_liq(i,j) = 1e-12;
+                Pr_liq(i,j) = 1e-12;
+            end
         end
         for i = 2 : mVapor
-            [v_vap(i,j), s_vap(i,j), T_vap(i,j), nu_vap(i,j), k_vap(i,j), Pr_vap(i,j)] ...
-                = fluidProperties(p(j), u_vap(i,j));
+            try
+                [v_vap(i,j), s_vap(i,j), T_vap(i,j), nu_vap(i,j), k_vap(i,j), Pr_vap(i,j)] ...
+                    = fluidProperties(p(j), u_vap(i,j));
+            catch err
+                %Display error but proceed anyway
+                disp(err);
+                v_vap(i,j) = 1e-12;
+                s_vap(i,j) = 1e-12;
+                T_vap(i,j) = 1e-12;
+                nu_vap(i,j) = 1e-12;
+                k_vap(i,j) = 1e-12;
+                Pr_vap(i,j) = 1e-12;
+            end
         end
     end
     
