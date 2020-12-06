@@ -13,4 +13,4 @@ Sim.Heater.SA = 1; %SA of heater surrounding tank
 Sim.Heater.temp = 293; %initialises heater at room temperature
 Sim.Heater.weight = 0.1; %weight of heater. Very unsure as to the effect of this
 
-Sim.fillValve.max = 0.005; %maximum opening of valve m^2
+Sim.fillValve.max = 3e-5;%0.25*pi*(5e-3)^2; %maximum opening of valve m^2
