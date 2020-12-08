@@ -18,8 +18,8 @@ Sim.runTank.volume = 18; %m^3 BOC J sized nitrous oxide cylinder
 Sim.runTank.PInit = 31e5; %Pascal. Very temperature dependent (=Vapour pressure @ temp). Eg. 0C->31bar, 20C->50bar, 30C->63bar
 Sim.pipe.diameter = 7e-3; %m
 Sim.pipe.crossSection = 0.25*pi*(Sim.pipe.diameter)^2; %m^2
-Sim.pipe.startPressure = 64e5; %Pa (40e5 or so for Pablo)
-Sim.pipe.mdotOxInitial = 0.05; %kg/sec (0.05 or so for Pablo)
+Sim.pipe.startPressure = 0.99*Sim.runTank.PInit; %Pa (40e5 or so for Pablo)
+Sim.pipe.mdotOxInitial = 0.03; %kg/sec (0.05 or so for Pablo)
 
 Sim.preInjectorPipe.diameter = 7e-3; %m
 Sim.preInjectorPipe.crossSection = 0.25*pi*Sim.preInjectorPipe.diameter^2; %m^2
