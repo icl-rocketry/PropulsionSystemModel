@@ -38,7 +38,7 @@ hold off
 legend('Simulated Value', 'Recommended min to prevent backflow');
 xlabel("Time (s)");
 ylabel("Injector pressure drop fraction of chamber pressure (%)");
-title("Pablo Injector dP Fraction of Chamber Pressure (Injector 5)");
+title("Pablo Injector dP Fraction of Chamber Pressure (Injector 3)");
 
 
 %autoArrangeFigures(3,3,1)
