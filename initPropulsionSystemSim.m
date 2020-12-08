@@ -35,15 +35,15 @@ Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
 Sim.combustionChamber.rhoFuel = 953; %kg/m^3 (density)
 Sim.combustionChamber.combustionEfficiency = 0.95;
 Sim.combustionChamber.PChamberInit = 20e5;
-Sim.combustionChamber.portLength = 0.5967; %m. "Lp" in SPAD
+Sim.combustionChamber.portLength = 0.260; %m. "Lp" in SPAD
 %Regression rate parameters, empirical
 %using numbers from adam bakers excel file.
 Sim.combustionChamber.regRateParams.a = 2.3600e-5;
 Sim.combustionChamber.regRateParams.n = 0.6050;
 Sim.combustionChamber.regRateParams.m = 0;
 %Port configuration, circular
-Sim.combustionChamber.initialPortDiameter = 0.0403; %m (Grain inner diam)
-Sim.combustionChamber.initialFuelWebThickness = 0.0098; %m (Grain outer diam - inner diam)
+Sim.combustionChamber.initialPortDiameter = 23e-3; %m (Grain inner diam)
+Sim.combustionChamber.initialFuelWebThickness = 27e-3; %m (Grain outer diam - inner diam)
 
 %%
 %Nozzle properties
