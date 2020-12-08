@@ -9,20 +9,39 @@ run('initPropulsionSystemSim.m');
 Out = sim('propulsionSystem.slx'); 
 
 %%
-figure(1)
-plot(Out.combustionFuelWebThickness.Time,Out.combustionFuelWebThickness.Data)
+close all
 
-figure(2)
-plot(Out.combustionOFRatio.Time,Out.combustionOFRatio.Data)
-
-figure(3)
+figure()
 plot(Out.thrust.Time,Out.thrust.Data)
+xlabel("Time (s)");
+ylabel("Thrust (N)");
+title("Pablo Thrust");
 
-autoArrangeFigures(3,3,1)
+figure()
+plot(Out.motorMdotOx.Time,Out.motorMdotOx.Data)
+xlabel("Time (s)");
+ylabel("Oxidiser flow rate (kg/s)");
+title("Pablo Ox flow");
+
+figure()
+plot(Out.motorChamberPressure.Time,Out.motorChamberPressure.Data)
+xlabel("Time (s)");
+ylabel("Chamber Pressure (Pa)");
+title("Pablo Chamber Pressure");
+
+figure()
+plot(Out.motorDPPercentChamberPressure.Time,Out.motorDPPercentChamberPressure.Data)
+hold on
+plot([Out.motorDPPercentChamberPressure.Time(1) Out.motorDPPercentChamberPressure.Time(end)], ...
+    [20 20]);
+hold off
+legend('Simulated Value', 'Recommended min to prevent backflow');
+xlabel("Time (s)");
+ylabel("Injector pressure drop fraction of chamber pressure (%)");
+title("Pablo Injector dP Fraction of Chamber Pressure (Injector 5)");
 
 
-
-
+%autoArrangeFigures(3,3,1)
 
 
 
