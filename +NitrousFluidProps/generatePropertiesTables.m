@@ -32,6 +32,8 @@ disp("Generating...");
 mkdir('fluidTables'); 
 makePropertiesTables('fluidTables/', nitrousFluidTable, liquidPhase, PValsLiq, unormValsLiq, ...
     {enthalpy, entropy});
+makePropertiesTables('fluidTables/', nitrousFluidTable, vapourPhase, PValsVap, unormValsVap, ...
+    {enthalpy, entropy});
 disp("Generated!");
 
 function makePropertiesTables(path, fluidTable, phase, PVals, unormVals, properties)
