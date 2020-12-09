@@ -33,7 +33,7 @@ Sim.combustionChamber.OFRatioInitial = 6.5;
 Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
 Sim.combustionChamber.rhoFuel = 953; %kg/m^3 (density)
 Sim.combustionChamber.combustionEfficiency = 0.95;
-Sim.combustionChamber.PChamberInit = 30e5;
+Sim.combustionChamber.PChamberInit = 20e5;
 Sim.combustionChamber.portLength = 0.5967; %m. "Lp" in SPAD
 %Regression rate parameters, empirical
 %using numbers from adam bakers excel file.
