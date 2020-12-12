@@ -3,7 +3,7 @@ dataLoaded = load('+NitrousFluidProps/NitrousFluidTablesExtended.mat');
 nitrousFluidTable = dataLoaded.nitrousFluidTable;
 
 Sim.extTank.volume = 1*0.25*pi*(20e-2).^2; %volume of external tank m^3
-Sim.extTank.pressure = initialPressureFunc(20); %pressure of external tank Pa. function takes values in deg C
+Sim.extTank.pressure = initialPressureFunc(20); %pressure of external tank Pa. function takes values in deg C & assumes in v-L equilibrium
 
 Sim.fillpipe.diameter = 7e-3; %pipe connecting to external tank m
 Sim.fillpipe.crossSection = 0.25*pi*(Sim.fillpipe.diameter)^2; %m^2
