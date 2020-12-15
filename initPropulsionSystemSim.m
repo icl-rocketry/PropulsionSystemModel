@@ -34,18 +34,27 @@ Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
 Sim.combustionChamber.rhoFuel = 953; %kg/m^3 (density)
 Sim.combustionChamber.combustionEfficiency = 0.95;
 Sim.combustionChamber.PChamberInit = 30e5;
-Sim.combustionChamber.portLength = 0.5967; %m. "Lp" in SPAD
+Sim.combustionChamber.portLength = 0.26; %m. "Lp" in SPAD
 %Regression rate parameters, empirical
-%using numbers from adam bakers excel file.
-Sim.combustionChamber.regRateParams.a = 2.3600e-5;
-Sim.combustionChamber.regRateParams.n = 0.6050;
-Sim.combustionChamber.regRateParams.m = 0;
+Sim.combustionChamber.useOxFluxRegRateEquation = 1; %If 1 then uses rdot=a*Gox^n, if 0 then uses rdot=a*Gprop^n*length^m
+%McCormick et all 2005 for FR5560
+%(https://core.ac.uk/download/pdf/304374863.pdf)
+Sim.combustionChamber.regRateParams.a = 0.155e-3;
+Sim.combustionChamber.regRateParams.n = 0.5;
+Sim.combustionChamber.regRateParams.m = NaN; %Unused
+
+%Numbers from adam bakers excel file for rdot=a*Gprop^n*length^m
+% Sim.combustionChamber.regRateParams.a = 2.3600e-5;
+% Sim.combustionChamber.regRateParams.n = 0.6050;
+% Sim.combustionChamber.regRateParams.m = 0;
 %Port configuration, circular
-Sim.combustionChamber.initialPortDiameter = 0.0403; %m (Grain inner diam)
-Sim.combustionChamber.initialFuelWebThickness = 0.0098; %m (Grain outer diam - inner diam)
+%Values for potentially possible pablo
+Sim.combustionChamber.initialPortDiameter = 23e-3; %m (Grain inner diam)
+grainOuterDiam = 50e-3; %m
+Sim.combustionChamber.initialFuelWebThickness = grainOuterDiam-Sim.combustionChamber.initialPortDiameter; %m (Grain outer diam - inner diam)
 
 %%
 %Nozzle properties
 Sim.nozzle.throatArea = 2.4575e-4; %m^2 (4.07e-5 for Pablo)
-Sim.nozzle.expansionRatio = 2.3325; %m^2 (2.6 for Pablo)
+Sim.nozzle.expansionRatio = 3.9; %m^2 (2.6 for Pablo)
 Sim.nozzle.thrustEfficiencyFactor = 0.85; %lambda
