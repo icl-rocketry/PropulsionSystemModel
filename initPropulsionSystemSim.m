@@ -13,7 +13,7 @@ Sim.PAmbient = 101325; %Pa
 %%
 %Feed System properties
 Sim.runTank.volume = 0.8*(0.25*pi*(150e-3).^2); %m^3
-Sim.runTank.PInit = 64e5; %Pascal. Very temperature dependent. Eg. 0C->31bar, 20C->50bar, 30C->63bar
+Sim.runTank.PInit = 60e5; %Pascal. Very temperature dependent. Eg. 0C->31bar, 20C->50bar, 30C->63bar
 Sim.pipe.diameter = 7e-3; %m
 Sim.pipe.crossSection = 0.25*pi*(Sim.pipe.diameter)^2; %m^2
 Sim.pipe.startPressure = Sim.runTank.PInit; %Pa (40e5 or so for Pablo)
