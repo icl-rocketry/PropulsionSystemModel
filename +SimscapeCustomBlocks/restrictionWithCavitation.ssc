@@ -1,19 +1,24 @@
-component orifice
-% Orifice
+component restrictionWithCavitation
+% Restriction With Cavitation
 % This models a restriction in a two phase network with a resistance
 % specified from it's flow coefficient (In Imperial units - Cv).
-% Currently assumes turbulent non-choked liquid (terrible assumption)
-% Will eventually use equations from https://www.controlglobal.com/assets/Media/MediaManager/RefBook_Cashco_Fluid.pdf
-% to model critical two phase and gas phase regimes
+% Currently assumes turbulent mostly liquid inlet (NOT appropriate for gas inlet or or laminar flows currently...)
+% Uses equations from https://www.controlglobal.com/assets/Media/MediaManager/RefBook_Cashco_Fluid.pdf
+% to model critical two phase regime
 
 nodes
     A = foundation.two_phase_fluid.two_phase_fluid; % A:left
     B = foundation.two_phase_fluid.two_phase_fluid; % B:right
 end
 
+inputs
+    % Flow coefficient (C_v, Imperial Units)
+    Cv = 10; % Cv:left
+end
+
 parameters
-    Cv = 0.5; % Flow coefficient (Imperial units)
     area             = {0.01, 'm^2'}; % Cross-sectional area at ports A and B
+    F_L = 0.45; % Liquid Pressure Recovery Factor (F_L, Approx 0.45 for ball valves)
 end
 
 % Parameter checks
@@ -31,6 +36,7 @@ end
 variables (Access=protected, ExternalAccess=none)
     u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
+    P_Vap_in = {0, 'MPa'}; %Vapour pressure for same temp as at inlet
 end
 
 branches
@@ -87,11 +93,34 @@ equations
         volumetric_flow_rate = {0.000277778 * 0.865 * Cv * (value(dP, 'bar')/specific_gravity)^0.5, 'm^3/s'};
         
         % Mass flow rate
-        mdot = direction * (volumetric_flow_rate / v_in);
+        mdotUnchoked = direction * (volumetric_flow_rate / v_in);
         
         %Velocity at A
         velocity_A = (mdot * v_A) / area;
+        
+        %Liquid Critical Pressure Ratio Factor
+        F_f = 0.96 - 0.28 * (P_Vap_in / A.p_crit)^0.5;
+        
+        %Vena contracta min pressure
+        P_vc = F_f * P_Vap_in;
+        
+        %"dP allow" - Above this dP full choking occurs
+        dPChokeThreshold = F_L^2 * (p_in - P_vc);
+        
+        %Turbulent flow, choked
+        dPChoked = p_in - P_vc;
+        volumetric_flow_rate_choked = {0.000277778 * 0.865 * Cv * F_L * (value(dPChoked, 'bar')/specific_gravity)^0.5, 'm^3/s'};
+        
+        %Mass flow rate
+        mdotChokedVal = direction * (volumetric_flow_rate_choked / v_in);
+        
+        %Mass flow rate, blending between unchoked and choked as needed
+        %NOT appropriate for gas phase...
+        mdot = simscape.function.blend(mdotUnchoked, mdotChokedVal, max(0, p_in - P_Vap_in), dPChokeThreshold, dP);
     in
+        %Solve for P_Vap at inlet temperature
+        T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=linear, extrapolation=linear);
+        
         % Mass flow rate
         mdot_A == mdot;
         
