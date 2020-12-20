@@ -1,0 +1,1 @@
+ssc_build SimscapeCustomBlocks
