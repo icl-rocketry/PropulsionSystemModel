@@ -2,7 +2,7 @@ component restrictionWithCavitation
 % Restriction With Cavitation
 % This models a restriction in a two phase network with a resistance
 % specified from it's flow coefficient (In Imperial units - Cv).
-% Currently assumes turbulent mostly liquid inlet (NOT appropriate for gas inlet or or laminar flows currently...)
+% Currently assumes mostly liquid inlet (NOT appropriate for gas inlet currently...)
 % Uses equations from https://www.controlglobal.com/assets/Media/MediaManager/RefBook_Cashco_Fluid.pdf
 % to model critical two phase regime
 
@@ -12,18 +12,19 @@ nodes
 end
 
 inputs
-    % Flow coefficient (C_v, Imperial Units)
+    % Flow coefficient (C_v, Imperial Units. Assumed is for water)
     Cv = 10; % Cv:left
 end
 
 parameters
     area             = {0.01, 'm^2'}; % Cross-sectional area at ports A and B
     F_L = 0.45; % Liquid Pressure Recovery Factor (F_L, Approx 0.45 for ball valves)
+    F_d = 1; % Valve style modifier for turbulence threshold (F_d)
 end
 
 % Parameter checks
 equations
-    assert(Cv > 0)
+    assert(Cv >= 0)
 end
 
 variables (Access=protected)
@@ -37,6 +38,7 @@ variables (Access=protected, ExternalAccess=none)
     u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
     P_Vap_in = {0, 'MPa'}; %Vapour pressure for same temp as at inlet
+    volumetric_flow_rate = {0, 'm^3/s'};
 end
 
 branches
@@ -84,16 +86,43 @@ equations
         
         %Temp at inlet
         T_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_A, p_in, interpolation=linear, extrapolation=linear);
+        %Kinematic viscosity at inlet
+        nu_in = tablelookup(A.unorm_TLU, A.p_TLU, A.nu_TLU, unorm_A, p_in, interpolation=linear, extrapolation=linear);
         
         %Inlet specific gravity (rho/rho_water)
         rho_water = {997, 'kg/m^3'};
-        specific_gravity = 1 / (rho_water * v_A);
+        specific_gravity = 1 / (rho_water * v_in);
         
-        %Turbulent liquid, non choked
-        volumetric_flow_rate = {0.000277778 * 0.865 * Cv * (value(dP, 'bar')/specific_gravity)^0.5, 'm^3/s'};
+        % Valve Reynolds Number, pretty much ALWAYS turbulent...
+        N_Rev = (273.76 * F_d * value(volumetric_flow_rate, 'm^3/s')) / (value(nu_in,'m^2/s') * (max(Cv,1e-6) * F_L)^0.5 );
+        
+        valveReynoldsFactorPolynomialCoeffs = [3.16850064363529e-09	-1.11330402840485e-07	1.27828631540423e-06	-2.44149541833513e-06	-5.29569390172417e-05	0.000290700310164281	0.000639895516939893	-0.00729720095432149	-0.0162996255586932	0.544909856098589	-2.79435940651948];
+        %Valve Reynolds Number Factor (Pretty much always 1)
+        F_R = ...
+            if ge(N_Rev, 40e3), ...
+                1
+            elseif lt(N_Rev, 0.010401453145693925), ...
+                0.005223345074266849
+            else ...
+                min(1, exp(log( valveReynoldsFactorPolynomialCoeffs(1)*N_Rev^10 ...
+                + valveReynoldsFactorPolynomialCoeffs(2)*N_Rev^9 ...
+                + valveReynoldsFactorPolynomialCoeffs(3)*N_Rev^8 ...
+                + valveReynoldsFactorPolynomialCoeffs(4)*N_Rev^7 ...
+                + valveReynoldsFactorPolynomialCoeffs(5)*N_Rev^6 ...
+                + valveReynoldsFactorPolynomialCoeffs(6)*N_Rev^5 ...
+                + valveReynoldsFactorPolynomialCoeffs(7)*N_Rev^4 ...
+                + valveReynoldsFactorPolynomialCoeffs(8)*N_Rev^3 ...
+                + valveReynoldsFactorPolynomialCoeffs(9)*N_Rev^2 ...
+                + valveReynoldsFactorPolynomialCoeffs(10)*N_Rev^1 ...
+                + valveReynoldsFactorPolynomialCoeffs(11) ...
+            )))
+            end;
+        
+        % Liquid, non choked
+        volumetric_flow_rate_non_choked = {0.000277778 * 0.865 * Cv * F_R * (value(dP, 'bar')/specific_gravity)^0.5, 'm^3/s'};
         
         % Mass flow rate
-        mdotUnchoked = direction * (volumetric_flow_rate / v_in);
+        mdotUnchokedVal = direction * (volumetric_flow_rate_non_choked / v_in);
         
         %Velocity at A
         velocity_A = (mdot * v_A) / area;
@@ -108,21 +137,22 @@ equations
         dPChokeThreshold = F_L^2 * (p_in - P_vc);
         
         %Turbulent flow, choked
-        dPChoked = p_in - P_vc;
-        volumetric_flow_rate_choked = {0.000277778 * 0.865 * Cv * F_L * (value(dPChoked, 'bar')/specific_gravity)^0.5, 'm^3/s'};
+        dPChoked = abs(p_in - P_vc);
+        volumetric_flow_rate_choked = min(volumetric_flow_rate_non_choked, {0.000277778 * 0.865 * Cv * F_L * (value(dPChoked, 'bar')/specific_gravity)^0.5, 'm^3/s'});
         
         %Mass flow rate
         mdotChokedVal = direction * (volumetric_flow_rate_choked / v_in);
         
         %Mass flow rate, blending between unchoked and choked as needed
         %NOT appropriate for gas phase...
-        mdot = simscape.function.blend(mdotUnchoked, mdotChokedVal, max(0, p_in - P_Vap_in), dPChokeThreshold, dP);
-    in
+        mdot = simscape.function.blend(mdotUnchokedVal, mdotChokedVal, max(0, p_in - P_Vap_in), dPChokeThreshold, dP);
+    in        
         %Solve for P_Vap at inlet temperature
         T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=linear, extrapolation=linear);
         
         % Mass flow rate
         mdot_A == mdot;
+        volumetric_flow_rate == abs(mdot * v_in);
         
         % Pick specific internal energy such that process is isenthalpic
         u_A + p_A*v_A == u_B + p_B*v_B;
