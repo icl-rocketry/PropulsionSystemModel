@@ -12,7 +12,7 @@ component restrictionWithCavitation
 % Equations from https://www.valin.com/resources/blog/gas-flow-control-valves
 %
 % The two models are blended between smoothly between the vapor quality thresholds specified. Both models
-% assume the flow is fully turbulent and the throttling process is isenthalpic
+% assume the throttling process is isenthalpic
 %
 % More about gas flow and x_T pressure drop ratio factor: 
 % https://www.valin.com/resources/blog/gas-flow-control-valves
@@ -56,10 +56,9 @@ variables (Access=protected, ExternalAccess=none)
     u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
     P_Vap_in = {0, 'MPa'}; %Vapour pressure for same temp as at inlet
-    volumetric_flow_rate_non_choked_liq = {0.5, 'm^3/s'};
     %Used for finite different approx of isochloric specific heat since 2P fluids doesn't have it tabulated
-%     u_small_perturb_constant_vol = {1500, 'kJ/kg'};
-%     P_small_perturb_constant_vol = {1, 'bar'};
+    u_small_perturb_constant_vol = {1500, 'kJ/kg'};
+    P_small_perturb_constant_vol = {1, 'bar'};
 end
 
 branches
@@ -81,8 +80,8 @@ equations
         unorm_B = foundation.two_phase_fluid.normalized_internal_energy(u_B, p_B, ...
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
         % Used for approximatic isochloric specific heat capacity since 2P domain doesn't tabulate it...
-%         unorm_small_perturb_constant_vol = foundation.two_phase_fluid.normalized_internal_energy(u_small_perturb_constant_vol, P_small_perturb_constant_vol, ...
-%             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        unorm_small_perturb_constant_vol = foundation.two_phase_fluid.normalized_internal_energy(u_small_perturb_constant_vol, P_small_perturb_constant_vol, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
         
         % Specific volume
         v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=smooth, extrapolation=linear);
@@ -131,20 +130,23 @@ equations
         
 
         %Cv = dU/dT at constant volume
-%         T_smallPerturb = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
+        T_smallPerturb = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
 
         Cp_in = (k_in*Pr_in)/visc_in; % Pr = (mu*Cp)/k
         %Really not that great an approximation... alternative is using own two phase fluid domain with more properties given
-        Cv_in = u_in / T_in;%(u_small_perturb_constant_vol-u_in) / (T_smallPerturb-T_in);
+        Cv_in = (u_small_perturb_constant_vol-u_in) / (T_smallPerturb-T_in);
         specificHeatRatio = max(Cp_in / Cv_in, 0.1); %Approximately right, but notable error due to okay-ish Cp and meh Cv values
         
         %Inlet specific gravity (rho/rho_water)
         rho_water = {997, 'kg/m^3'};
         specific_gravity = 1 / (rho_water * v_in);
         
+        % Liquid, non choked, turbulent
+        volumetric_flow_rate_non_choked_turb = {0.000277778 * 0.865 * Cv * (value(dP, 'bar')/specific_gravity)^0.5, 'm^3/s'};
+        
         % Valve Reynolds Number, pretty much ALWAYS turbulent...
-        %Disabled and assumed fully turbulent for now since causes headaches for the solver and is basically always turbulent anyway
-        N_Rev = 50e3;%(273.76 * F_d * value(volumetric_flow_rate_non_choked_liq, 'm^3/s')) / (value(nu_in,'m^2/s') * (max(Cv,1e-6) * F_L)^0.5 );
+        %Assume flow rate approx that of turbulent case for calculation of N_Rev (approximation)
+        N_Rev = (273.76 * F_d * value(volumetric_flow_rate_non_choked_turb, 'm^3/s')) / (value(nu_in,'m^2/s') * (max(Cv,1e-6) * F_L)^0.5 );
         
         valveReynoldsFactorPolynomialCoeffs = [3.16850064363529e-09	-1.11330402840485e-07	1.27828631540423e-06	-2.44149541833513e-06	-5.29569390172417e-05	0.000290700310164281	0.000639895516939893	-0.00729720095432149	-0.0162996255586932	0.544909856098589	-2.79435940651948];
         %Valve Reynolds Number Factor (Pretty much always 1)
@@ -169,7 +171,7 @@ equations
             end;
         
         % Liquid, non choked
-        volumetric_flow_rate_non_choked = {0.000277778 * 0.865 * Cv * F_R * (value(dP, 'bar')/specific_gravity)^0.5, 'm^3/s'};
+        volumetric_flow_rate_non_choked = F_R * volumetric_flow_rate_non_choked_turb;
         
         % Mass flow rate
         mdotUnchokedVal = direction * (volumetric_flow_rate_non_choked / v_in);
@@ -211,16 +213,15 @@ equations
         mdot = simscape.function.blend(mdotLiq, mdotCompressible, X_liquid_threshold, X_gas_theshold, vapor_quality_in);
     in             
 %         %Used for approximating Cv...
-%         T_smallPerturb == T_in + {2, 'K'}; %2K perturbation seems to give okay-ish approximations..., if too small gives bad results (Data interpolation bad?)
-%         %Same specific volume so that the small perturbation is with constant density
-%         v_in == tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
+        T_smallPerturb == T_in + {2, 'K'}; %2K perturbation seems to give okay-ish approximations..., if too small gives bad results (Data interpolation bad?)
+        %Same specific volume so that the small perturbation is with constant density
+        v_in == tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
         
         %Solve for P_Vap at inlet temperature
         T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=smooth, extrapolation=linear);
         
         % Mass flow rate
         mdot_A == mdot;
-        volumetric_flow_rate_non_choked_liq == volumetric_flow_rate_non_choked;
         
         % Pick specific internal energy such that process is isenthalpic
         u_A + p_A*v_A == u_B + p_B*v_B;
