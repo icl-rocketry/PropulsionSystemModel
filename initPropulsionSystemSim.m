@@ -17,7 +17,7 @@ Sim.runTank.PInit = 60e5; %Pascal. Very temperature dependent. Eg. 0C->31bar, 20
 Sim.pipe.diameter = 7e-3; %m
 Sim.pipe.crossSection = 0.25*pi*(Sim.pipe.diameter)^2; %m^2
 Sim.pipe.startPressure = Sim.runTank.PInit; %Pa (40e5 or so for Pablo)
-Sim.pipe.mdotOxInitial = 0.15; %kg/sec (0.05 or so for Pablo)
+Sim.pipe.mdotOxInitial = 0.1; %kg/sec (0.05 or so for Pablo)
 
 Sim.preInjectorPipe.diameter = 7e-3; %m
 Sim.preInjectorPipe.crossSection = 0.25*pi*Sim.preInjectorPipe.diameter^2; %m^2
