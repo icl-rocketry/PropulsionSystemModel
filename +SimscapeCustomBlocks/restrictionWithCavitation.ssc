@@ -11,7 +11,8 @@ component restrictionWithCavitation
 % given by sonic conditions. (Controlled by input x_T pressure drop ratio factor signal). 
 % Equations from https://www.valin.com/resources/blog/gas-flow-control-valves
 %
-% The two models are blended between smoothly between the vapor quality thresholds specified
+% The two models are blended between smoothly between the vapor quality thresholds specified. Both models
+% assume the flow is fully turbulent and the throttling process is isenthalpic
 %
 % More about gas flow and x_T pressure drop ratio factor: 
 % https://www.valin.com/resources/blog/gas-flow-control-valves
@@ -142,7 +143,8 @@ equations
         specific_gravity = 1 / (rho_water * v_in);
         
         % Valve Reynolds Number, pretty much ALWAYS turbulent...
-        N_Rev = (273.76 * F_d * value(volumetric_flow_rate_non_choked_liq, 'm^3/s')) / (value(nu_in,'m^2/s') * (max(Cv,1e-6) * F_L)^0.5 );
+        %Disabled and assumed fully turbulent for now since causes headaches for the solver and is basically always turbulent anyway
+        N_Rev = 50e3;%(273.76 * F_d * value(volumetric_flow_rate_non_choked_liq, 'm^3/s')) / (value(nu_in,'m^2/s') * (max(Cv,1e-6) * F_L)^0.5 );
         
         valveReynoldsFactorPolynomialCoeffs = [3.16850064363529e-09	-1.11330402840485e-07	1.27828631540423e-06	-2.44149541833513e-06	-5.29569390172417e-05	0.000290700310164281	0.000639895516939893	-0.00729720095432149	-0.0162996255586932	0.544909856098589	-2.79435940651948];
         %Valve Reynolds Number Factor (Pretty much always 1)
