@@ -130,11 +130,13 @@ equations
         %Liquid Critical Pressure Ratio Factor
         F_f = 0.96 - 0.28 * (P_Vap_in / A.p_crit)^0.5;
         
-        %Vena contracta min pressure
+        %Choked vena contracta min pressure
         P_vc = F_f * P_Vap_in;
         
         %"dP allow" - Above this dP full choking occurs
         dPChokeThreshold = F_L^2 * (p_in - P_vc);
+        %Above this dP partial cavitation occurs (When non choked vena contracta pressure is equal to vapor pressure)
+        dPChokeIncipient = F_L^2 * (p_in - P_Vap_in);
         
         %Turbulent flow, choked
         dPChoked = abs(p_in - P_vc);
@@ -145,7 +147,7 @@ equations
         
         %Mass flow rate, blending between unchoked and choked as needed
         %NOT appropriate for gas phase...
-        mdot = simscape.function.blend(mdotUnchokedVal, mdotChokedVal, max(0, p_in - P_Vap_in), dPChokeThreshold, dP);
+        mdot = simscape.function.blend(mdotUnchokedVal, mdotChokedVal, max(0, dPChokeIncipient), max({1e-8,'bar'},dPChokeThreshold), dP);
     in        
         %Solve for P_Vap at inlet temperature
         T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=linear, extrapolation=linear);
