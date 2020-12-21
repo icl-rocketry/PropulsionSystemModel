@@ -2,9 +2,21 @@ component restrictionWithCavitation
 % Restriction With Cavitation
 % This models a restriction in a two phase network with a resistance
 % specified from it's flow coefficient (In Imperial units - Cv).
-% Currently assumes mostly liquid inlet (NOT appropriate for gas inlet currently...)
+%
+% Two different models are used: The first model is for a mostly liquid flow where
+% flow rate is computed as the liquid flow rate, with choking condition given by cavitation.
 % Uses equations from https://www.controlglobal.com/assets/Media/MediaManager/RefBook_Cashco_Fluid.pdf
-% to model critical two phase regime
+% 
+% The second model used calculates the flow rate using a compressible gas relation, with choking condition
+% given by sonic conditions. (Controlled by input x_T pressure drop ratio factor signal). 
+% Equations from https://www.valin.com/resources/blog/gas-flow-control-valves
+%
+% The two models are blended between smoothly between the vapor quality thresholds specified
+%
+% More about gas flow and x_T pressure drop ratio factor: 
+% https://www.valin.com/resources/blog/gas-flow-control-valves
+% and also:
+% http://integrated.cc/cse/ISA_750101_SPBd.pdf
 
 nodes
     A = foundation.two_phase_fluid.two_phase_fluid; % A:left
@@ -14,12 +26,17 @@ end
 inputs
     % Flow coefficient (C_v, Imperial Units. Assumed is for water)
     Cv = 10; % Cv:left
+    % Threshold Choked Pressure Drop Ratio Factor for compressible flow calculation - Varies for valve type and open-amt (=dP_Choked/P1)
+    x_T = 0.2; %x_T:left
 end
 
 parameters
     area             = {0.01, 'm^2'}; % Cross-sectional area at ports A and B
+    %Should perhaps change to input as should vary with how open valve is (p31 of ISA_750101_SPBd.pdf)
     F_L = 0.45; % Liquid Pressure Recovery Factor (F_L, Approx 0.45 for ball valves)
     F_d = 1; % Valve style modifier for turbulence threshold (F_d)
+    X_liquid_threshold = 0.6; %Vapor quality below which is modelled as liquid with cavitation/flashing choke condition
+    X_gas_theshold = 0.9; %Vapor quality above which is modelled as compressible gas with sonic choke condition
 end
 
 % Parameter checks
@@ -39,6 +56,9 @@ variables (Access=protected, ExternalAccess=none)
     u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
     P_Vap_in = {0, 'MPa'}; %Vapour pressure for same temp as at inlet
     volumetric_flow_rate = {0, 'm^3/s'};
+    %Used for finite different approx of isochloric specific heat since 2P fluids doesn't have it tabulated
+    u_small_perturb_constant_vol = {1500, 'kJ/kg'};
+    P_small_perturb_constant_vol = {1, 'MPa'};
 end
 
 branches
@@ -59,13 +79,16 @@ equations
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
         unorm_B = foundation.two_phase_fluid.normalized_internal_energy(u_B, p_B, ...
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
-
+        % Used for approximatic isochloric specific heat capacity since 2P domain doesn't tabulate it...
+        unorm_small_perturb_constant_vol = foundation.two_phase_fluid.normalized_internal_energy(u_small_perturb_constant_vol, P_small_perturb_constant_vol, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        
         % Specific volume
-        v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=linear, extrapolation=linear);
-        v_B = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_B, p_B, interpolation=linear, extrapolation=linear);
+        v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=smooth, extrapolation=linear);
+        v_B = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_B, p_B, interpolation=smooth, extrapolation=linear);
         
         % Inlet and outlet pressure, unorm and specific volumes
-        [p_in, unorm_in, v_in, unorm_out, v_out, dP, direction] = ...
+        [p_in, unorm_in, v_in, unorm_out, v_out, dP, direction, u_in, u_out] = ...
             if ge(p_A, p_B), ...
                 p_A; ...
                 unorm_A; ...
@@ -73,7 +96,9 @@ equations
                 unorm_B; ...
                 v_B; ...
                 p_A - p_B; ...
-                1
+                1; ...
+                u_A; ...
+                u_B
             else ...
                 p_B; ...
                 unorm_B; ...
@@ -81,13 +106,36 @@ equations
                 unorm_A; ...
                 v_A; ...
                 p_B - p_A; ...
-                -1
+                -1; ...
+                u_B; ...
+                u_A
+            end;
+            
+        vapor_quality_in = ...
+            if lt(p_in, A.p_crit), ...
+                simscape.function.limit(unorm_in, 0, 1, false)
+            else ...
+                    -1
             end;
         
-        %Temp at inlet
-        T_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_A, p_in, interpolation=linear, extrapolation=linear);
+        %Temp at inlet and outlet
+        T_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
         %Kinematic viscosity at inlet
-        nu_in = tablelookup(A.unorm_TLU, A.p_TLU, A.nu_TLU, unorm_A, p_in, interpolation=linear, extrapolation=linear);
+        nu_in = tablelookup(A.unorm_TLU, A.p_TLU, A.nu_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        %Prandtl at inlet
+        Pr_in = tablelookup(A.unorm_TLU, A.p_TLU, A.Pr_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        %Thermal conductivity at inlet
+        k_in = tablelookup(A.unorm_TLU, A.p_TLU, A.k_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        visc_in = nu_in / v_in;
+        
+
+        %Cv = dU/dT at constant volume
+        T_smallPerturb = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
+
+        Cp_in = (k_in*Pr_in)/visc_in; % Pr = (mu*Cp)/k
+        %Really not that great an approximation... alternative is using own two phase fluid domain with more properties given
+        Cv_in = (u_small_perturb_constant_vol-u_in) / (T_smallPerturb-T_in);
+        specificHeatRatio = max(Cp_in / Cv_in, 0.1); %Approximately right, but notable error due to okay-ish Cp and meh Cv values
         
         %Inlet specific gravity (rho/rho_water)
         rho_water = {997, 'kg/m^3'};
@@ -133,24 +181,40 @@ equations
         %Choked vena contracta min pressure
         P_vc = F_f * P_Vap_in;
         
-        %"dP allow" - Above this dP full choking occurs
+        %"dP allow" - Above this dP full cavitation choking occurs
         dPChokeThreshold = F_L^2 * (p_in - P_vc);
         %Above this dP partial cavitation occurs (When non choked vena contracta pressure is equal to vapor pressure)
         dPChokeIncipient = F_L^2 * (p_in - P_Vap_in);
         
-        %Turbulent flow, choked
+        %Liquid turbulent flow, choked
         dPChoked = abs(p_in - P_vc);
         volumetric_flow_rate_choked = min(volumetric_flow_rate_non_choked, {0.000277778 * 0.865 * Cv * F_L * (value(dPChoked, 'bar')/specific_gravity)^0.5, 'm^3/s'});
         
-        %Mass flow rate
+        %Mass flow rate for choked liquid
         mdotChokedVal = direction * (volumetric_flow_rate_choked / v_in);
         
-        %Mass flow rate, blending between unchoked and choked as needed
+        %Mass flow rate for liquid, blending between unchoked and choked as needed
         %NOT appropriate for gas phase...
-        mdot = simscape.function.blend(mdotUnchokedVal, mdotChokedVal, max(0, dPChokeIncipient), max({1e-8,'bar'},dPChokeThreshold), dP);
-    in        
+        mdotLiq = simscape.function.blend(mdotUnchokedVal, mdotChokedVal, max(0, dPChokeIncipient), max({1e-8,'bar'},dPChokeThreshold), dP);
+    
+        %Compressible gas flow rate (with choking) using eqn 9 (ISA_750101_SPBd.pdf)
+        pressureDropRatio = dP/p_in; %'x'
+        %Specific heat ratio factor
+        F_k = specificHeatRatio / 1.4; %Relative to air
+        pressureDropRatioMax = F_k * x_T;
+        Y = 1 - min(pressureDropRatio, pressureDropRatioMax)/(3*F_k*max(x_T, 1e-9)); %"Expansion factor"
+        mdotCompressible = {Cv * 0.00075833333 * Y * (min(pressureDropRatio, pressureDropRatioMax) * value(p_in, 'kPa') * value(v_in, 'm^3/kg')^-1)^0.5, 'kg/s'};
+        
+        %Blend between liquid with cavitation and compressible gas flow rate predictions between chosen thresholds
+        mdot = simscape.function.blend(mdotLiq, mdotCompressible, X_liquid_threshold, X_gas_theshold, vapor_quality_in);
+    in             
+        %Used for approximating Cv...
+        T_smallPerturb == T_in + {2, 'K'}; %2K perturbation seems to give okay-ish approximations..., if too small gives bad results (Data interpolation bad?)
+        %Same specific volume so that the small perturbation is with constant density
+        v_in == tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
+        
         %Solve for P_Vap at inlet temperature
-        T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=linear, extrapolation=linear);
+        T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=smooth, extrapolation=linear);
         
         % Mass flow rate
         mdot_A == mdot;
