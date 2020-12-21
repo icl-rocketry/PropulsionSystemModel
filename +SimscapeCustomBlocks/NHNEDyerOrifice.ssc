@@ -90,7 +90,7 @@ equations
             
         unorm_out_isentropic = foundation.two_phase_fluid.normalized_internal_energy(u_out_isentropic, p_in-dP, ...
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
-        v_out_isentropic = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_out_isentropic, p_B, interpolation=smooth, extrapolation=linear);
+        v_out_isentropic = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_out_isentropic, p_in-dP, interpolation=smooth, extrapolation=linear);
             
         %Entropy
         s_in = tablelookup(A.unorm_TLU, A.p_TLU, A.s_TLU, unorm_in, p_in, interpolation=smooth, extrapolation=linear);
