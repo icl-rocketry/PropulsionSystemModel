@@ -1,0 +1,172 @@
+component NHNEDyerOrifice
+% NHNE (Dyer) Orifice
+% This models a restriction in a two phase network following the equations given by Dyer, corrected by Solomon.
+% This uses two models: An isentropic HEM model for the mass flow, and an incompressible model for the mass flow
+% with the calculated mass flow given as a weighting of the two using the coefficients proposed by Dyer and corrected by Solomon.
+% Once mass flow is determined, the other properties are given by energy conservation.
+
+nodes
+    A = foundation.two_phase_fluid.two_phase_fluid; % A:left
+    B = foundation.two_phase_fluid.two_phase_fluid; % B:right
+end
+
+parameters
+    area             = {0.01, 'm^2'}; % Cross-sectional area at ports A and B
+    orifice_area = {2e-5, 'm^2'}; % A_c Total area of orifices
+    Cd = 0.8; % Cd Discharge coefficient (Ratio of actual mdot to dyer prediction)
+end
+
+annotations
+    Icon = 'icon/NHNEDyer.png';
+end
+
+% Parameter checks
+equations
+    assert(Cd >= 0)
+    assert(orifice_area >= 0)
+    assert(orifice_area <= area)
+end
+
+variables (Access=protected)
+    mdot_A = {0, 'kg/s'}; % Mass flow rate into port A
+    mdot_B = {0, 'kg/s'}; % Mass flow rate into port B
+    Phi_A  = {0, 'kW'  }; % Energy flow rate into port A
+    Phi_B  = {0, 'kW'  }; % Energy flow rate into port B
+end
+
+variables (Access=protected, ExternalAccess=none)
+    u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
+    u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
+    u_out_isentropic = {1500, 'kJ/kg' }; % Specific internal energy at port B if isentropic
+    P_Vap_in = {0, 'MPa'}; %Vapour pressure for same temp as at inlet
+end
+
+branches
+    mdot_A : A.mdot -> *;
+    mdot_B : B.mdot -> *;
+    Phi_A  : A.Phi  -> *;
+    Phi_B  : B.Phi  -> *;
+end
+
+equations
+    let
+        % Port pressure
+        p_A = A.p;
+        p_B = B.p;
+
+        % Normalized internal energy
+        unorm_A = foundation.two_phase_fluid.normalized_internal_energy(u_A, p_A, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        unorm_B = foundation.two_phase_fluid.normalized_internal_energy(u_B, p_B, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        unorm_out_isentropic = foundation.two_phase_fluid.normalized_internal_energy(u_out_isentropic, p_B, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        
+        % Specific volume
+        v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=smooth, extrapolation=linear);
+        v_B = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_B, p_B, interpolation=smooth, extrapolation=linear);
+        v_out_isentropic = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_out_isentropic, p_B, interpolation=smooth, extrapolation=linear);
+        
+        % Inlet and outlet pressure, unorm and specific volumes
+        [p_in, unorm_in, v_in, unorm_out, v_out, dP, direction, u_in, u_out] = ...
+            if ge(p_A, p_B), ...
+                p_A; ...
+                unorm_A; ...
+                v_A; ...
+                unorm_B; ...
+                v_B; ...
+                p_A - p_B; ...
+                1; ...
+                u_A; ...
+                u_B
+            else ...
+                p_B; ...
+                unorm_B; ...
+                v_B; ...
+                unorm_A; ...
+                v_A; ...
+                p_B - p_A; ...
+                -1; ...
+                u_B; ...
+                u_A
+            end;
+            
+        %Entropy
+        s_in = tablelookup(A.unorm_TLU, A.p_TLU, A.s_TLU, unorm_in, p_in, interpolation=smooth, extrapolation=linear);
+        s_out_isentropic = tablelookup(A.unorm_TLU, A.p_TLU, A.s_TLU, unorm_out_isentropic, p_in-dP, interpolation=smooth, extrapolation=linear);
+        
+        %Incompressible mass flow
+        mdot_incompressible = Cd * orifice_area * (2*dP*v_in^-1)^0.5;
+        
+        %Enthalpy inlet and outlet
+        h1 = u_in + p_in*v_in;
+        h2_isentropic = u_out_isentropic + (p_in-dP)*v_out_isentropic;
+        
+        %Homogenous equilibrium model mass flow
+        mdot_HEM = Cd * orifice_area * v_out_isentropic^-1 * (2*(h1-h2_isentropic))^0.5;
+        
+        %Dyer parameter k
+        k = ( (dP) / (P_Vap_in - (p_in-dP)) )^0.5;
+        
+        %NHNE Mass flow rate, corrected by Solomon
+        mdot = (1-(1/(1+k)))*mdot_incompressible + (1/(1+k))*mdot_HEM;
+        
+        %Temp at inlet
+        T_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        
+        %Velocity at A,B
+        velocity_A = (mdot * v_A) / area;
+        velocity_B = (mdot * v_B) / area;
+    in  
+        %Solve for P_Vap at inlet temperature
+        T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=smooth, extrapolation=linear);
+        
+        % Mass flow rate
+        mdot_A == mdot;
+        
+        % Enforce isentropic for HEM calculation
+        s_in == s_out_isentropic;
+        
+        % Energy is conserved
+        u_A + p_A*v_A + velocity_A^2/2 == u_B + p_B*v_B + velocity_B^2/2;
+        
+        convection_A.ht_I == u_A + p_A*v_A + velocity_A^2/2;
+        
+        % Mass balance
+        mdot_A + mdot_B == 0;
+
+        % Energy balance
+        Phi_A + Phi_B == 0;
+
+        % Run-time variable checks
+        assert(A.p >= A.p_min, message('physmod:simscape:library:two_phase_fluid:PressureMinValid', 'A'))
+        assert(A.p <= A.p_max, message('physmod:simscape:library:two_phase_fluid:PressureMaxValid', 'A'))
+        assert(A.u >= A.u_min, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMinValid', 'A'))
+        assert(A.u <= A.u_max, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMaxValid', 'A'))
+        assert(B.p >= B.p_min, message('physmod:simscape:library:two_phase_fluid:PressureMinValid', 'B'))
+        assert(B.p <= B.p_max, message('physmod:simscape:library:two_phase_fluid:PressureMaxValid', 'B'))
+        assert(B.u >= B.u_min, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMinValid', 'B'))
+        assert(B.u <= B.u_max, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMaxValid', 'B'))
+
+        % Equate variables for internal components that calculate energy convection at ports A and B
+        convection_A.mdot == mdot_A;
+        convection_A.Phi  == Phi_A;
+        convection_B.mdot == mdot_B;
+        convection_B.Phi  == Phi_B;
+
+        convection_A.ht_I == convection_B.ht_I;
+    end
+end
+
+% Internal components that calculate energy convection at ports A and B
+components (ExternalAccess=none)
+    convection_A = foundation.two_phase_fluid.port_convection(flow_area = area, length_scale = sqrt(4*area/pi));
+    convection_B = foundation.two_phase_fluid.port_convection(flow_area = area, length_scale = sqrt(4*area/pi));
+end
+
+connections
+    connect(A, convection_A.port)
+    connect(B, convection_B.port)
+end
+
+end
