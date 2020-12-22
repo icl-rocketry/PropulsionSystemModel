@@ -55,7 +55,7 @@ end
 variables (Access=protected, ExternalAccess=none)
     u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
-    P_Vap_in = {0, 'MPa'}; %Vapour pressure for same temp as at inlet
+    P_Vap_in = {0.95, 'bar'}; %Vapour pressure for same temp as at inlet
     %Used for finite different approx of isochloric specific heat since 2P fluids doesn't have it tabulated
     u_small_perturb_constant_vol = {1500, 'kJ/kg'};
     P_small_perturb_constant_vol = {1, 'bar'};
@@ -213,7 +213,7 @@ equations
         mdot = simscape.function.blend(mdotLiq, mdotCompressible, X_liquid_threshold, X_gas_theshold, vapor_quality_in);
     in             
 %         %Used for approximating Cv...
-        T_smallPerturb == T_in + {2, 'K'}; %2K perturbation seems to give okay-ish approximations..., if too small gives bad results (Data interpolation bad?)
+        T_smallPerturb == T_in + {1.5, 'K'}; %1.5K perturbation seems to give okay-ish approximations..., if too small gives bad results (Data interpolation bad?)
         %Same specific volume so that the small perturbation is with constant density
         v_in == tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
         
