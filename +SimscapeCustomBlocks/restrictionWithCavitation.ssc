@@ -22,6 +22,13 @@ component restrictionWithCavitation
 nodes
     A = foundation.two_phase_fluid.two_phase_fluid; % A:left
     B = foundation.two_phase_fluid.two_phase_fluid; % B:right
+    Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
+end
+
+annotations
+    A : Side = left;
+    B : Side = right;
+    Props : Side = top;
 end
 
 inputs
@@ -55,10 +62,6 @@ end
 variables (Access=protected, ExternalAccess=none)
     u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
-    P_Vap_in = {0.95, 'bar'}; %Vapour pressure for same temp as at inlet
-    %Used for finite different approx of isochloric specific heat since 2P fluids doesn't have it tabulated
-    u_small_perturb_constant_vol = {1500, 'kJ/kg'};
-    P_small_perturb_constant_vol = {1, 'bar'};
 end
 
 branches
@@ -78,9 +81,6 @@ equations
         unorm_A = foundation.two_phase_fluid.normalized_internal_energy(u_A, p_A, ...
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
         unorm_B = foundation.two_phase_fluid.normalized_internal_energy(u_B, p_B, ...
-            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
-        % Used for approximatic isochloric specific heat capacity since 2P domain doesn't tabulate it...
-        unorm_small_perturb_constant_vol = foundation.two_phase_fluid.normalized_internal_energy(u_small_perturb_constant_vol, P_small_perturb_constant_vol, ...
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
         
         % Specific volume
@@ -120,22 +120,17 @@ equations
         
         %Temp at inlet and outlet
         T_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        
+        %Specific heats at inlet
+        Cp_in = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        Cv_in = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cv_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        specificHeatRatio = max(Cp_in / Cv_in, 0.1); %Approximately right, but notable error due to okay-ish Cp and meh Cv values
+        
+        %Vapor pressure for temp as at inlet
+        P_Vap_in = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.PVap_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        
         %Kinematic viscosity at inlet
         nu_in = tablelookup(A.unorm_TLU, A.p_TLU, A.nu_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
-        %Prandtl at inlet
-        Pr_in = tablelookup(A.unorm_TLU, A.p_TLU, A.Pr_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
-        %Thermal conductivity at inlet
-        k_in = tablelookup(A.unorm_TLU, A.p_TLU, A.k_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
-        visc_in = nu_in / v_in;
-        
-
-        %Cv = dU/dT at constant volume
-        T_smallPerturb = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
-
-        Cp_in = (k_in*Pr_in)/visc_in; % Pr = (mu*Cp)/k
-        %Really not that great an approximation... alternative is using own two phase fluid domain with more properties given
-        Cv_in = (u_small_perturb_constant_vol-u_in) / (T_smallPerturb-T_in);
-        specificHeatRatio = max(Cp_in / Cv_in, 0.1); %Approximately right, but notable error due to okay-ish Cp and meh Cv values
         
         %Inlet specific gravity (rho/rho_water)
         rho_water = {997, 'kg/m^3'};
@@ -212,15 +207,7 @@ equations
         %Velocity at A,B
         velocity_A = (mdot * v_A) / area;
         velocity_B = (mdot * v_B) / area;
-    in             
-        %Used for approximating Cv...
-        T_smallPerturb == T_in + {1.5, 'K'}; %1.5K perturbation seems to give okay-ish approximations..., if too small gives bad results (Data interpolation bad?)
-        %Same specific volume so that the small perturbation is with constant density
-        v_in == tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
-        
-        %Solve for P_Vap at inlet temperature
-        T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=smooth, extrapolation=linear);
-        
+    in
         % Mass flow rate
         mdot_A == mdot;
         

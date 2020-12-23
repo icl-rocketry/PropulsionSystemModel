@@ -8,6 +8,7 @@ applyReceiverAccumulatorPatch();
 %(Maybe there's a cleaner way to do this with masks??)
 load('+HybridMotor/propepPropsKeraxN2O_modified.mat');
 Sim.nitrousFluidTable = getNitrousFluidTable(); %Nitrous fluid properties for two phase flow model
+Sim.extraNitrousPropsTable = getExtraNitrousFluidTable();
 Sim.PAmbient = 101325; %Pa
 
 %%
