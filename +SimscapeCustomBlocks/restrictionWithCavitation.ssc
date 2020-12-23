@@ -12,7 +12,7 @@ component restrictionWithCavitation
 % Equations from https://www.valin.com/resources/blog/gas-flow-control-valves
 %
 % The two models are blended between smoothly between the vapor quality thresholds specified. Both models
-% assume the throttling process is isenthalpic
+% assume the throttling process is adiabatic
 %
 % More about gas flow and x_T pressure drop ratio factor: 
 % https://www.valin.com/resources/blog/gas-flow-control-valves
@@ -176,9 +176,6 @@ equations
         % Mass flow rate
         mdotUnchokedVal = direction * (volumetric_flow_rate_non_choked / v_in);
         
-        %Velocity at A
-        velocity_A = (mdot * v_A) / area;
-        
         %Liquid Critical Pressure Ratio Factor
         F_f = 0.96 - 0.28 * (P_Vap_in / A.p_crit)^0.5;
         
@@ -211,8 +208,12 @@ equations
         
         %Blend between liquid with cavitation and compressible gas flow rate predictions between chosen thresholds
         mdot = simscape.function.blend(mdotLiq, mdotCompressible, X_liquid_threshold, X_gas_theshold, vapor_quality_in);
+        
+        %Velocity at A,B
+        velocity_A = (mdot * v_A) / area;
+        velocity_B = (mdot * v_B) / area;
     in             
-%         %Used for approximating Cv...
+        %Used for approximating Cv...
         T_smallPerturb == T_in + {1.5, 'K'}; %1.5K perturbation seems to give okay-ish approximations..., if too small gives bad results (Data interpolation bad?)
         %Same specific volume so that the small perturbation is with constant density
         v_in == tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_small_perturb_constant_vol, P_small_perturb_constant_vol, interpolation=smooth, extrapolation=linear);
@@ -223,8 +224,8 @@ equations
         % Mass flow rate
         mdot_A == mdot;
         
-        % Pick specific internal energy such that process is isenthalpic
-        u_A + p_A*v_A == u_B + p_B*v_B;
+        % Pick specific internal energy such that process is adiabatic
+        u_A + p_A*v_A + velocity_A^2/2 == u_B + p_B*v_B + velocity_B^2/2;
         
         convection_A.ht_I == u_A + p_A*v_A + velocity_A^2/2;
         
