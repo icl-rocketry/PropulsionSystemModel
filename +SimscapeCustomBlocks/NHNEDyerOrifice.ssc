@@ -6,8 +6,9 @@ component NHNEDyerOrifice
 % Once mass flow is determined, the other properties are given by energy conservation.
 
 nodes
-    A = foundation.two_phase_fluid.two_phase_fluid; % A:left
-    B = foundation.two_phase_fluid.two_phase_fluid; % B:right
+    A = foundation.two_phase_fluid.two_phase_fluid;
+    B = foundation.two_phase_fluid.two_phase_fluid;
+    Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
 end
 
 parameters
@@ -18,6 +19,9 @@ end
 
 annotations
     Icon = 'icon/NHNEDyer.png';
+    A : Side = left;
+    B : Side = right;
+    Props : Side = top;
 end
 
 % Parameter checks
@@ -38,7 +42,6 @@ variables (Access=protected, ExternalAccess=none)
     u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
     u_out_isentropic = {1500, 'kJ/kg' }; % Specific internal energy at port B if isentropic
-    P_Vap_in = {30, 'bar'}; %Vapour pressure for same temp as at inlet
 end
 
 branches
@@ -88,6 +91,9 @@ equations
                 u_A
             end;
             
+        %Vapor pressure for temp as at inlet
+        P_Vap_in = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.PVap_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+            
         unorm_out_isentropic = foundation.two_phase_fluid.normalized_internal_energy(u_out_isentropic, p_in-dP, ...
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
         v_out_isentropic = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_out_isentropic, p_in-dP, interpolation=smooth, extrapolation=linear);
@@ -119,9 +125,6 @@ equations
         velocity_A = (mdot * v_A) / area;
         velocity_B = (mdot * v_B) / area;
     in  
-        %Solve for P_Vap at inlet temperature
-        T_in == tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, P_Vap_in, interpolation=smooth, extrapolation=linear);
-        
         % Mass flow rate
         mdot_A == mdot;
         
