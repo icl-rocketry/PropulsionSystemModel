@@ -92,7 +92,7 @@ equations
             end;
             
         %Vapor pressure for temp as at inlet
-        P_Vap_in = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.PVap_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
+        P_Vap_in = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.PVap_TLU, unorm_in, p_in, interpolation=smooth, extrapolation=linear);
             
         unorm_out_isentropic = foundation.two_phase_fluid.normalized_internal_energy(u_out_isentropic, p_in-dP, ...
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
