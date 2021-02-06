@@ -1,4 +1,5 @@
 # PropulsionSystemModel
+![Alt Image](img/systemPic.PNG?raw=true "Image")  
 Simscape / Simulink Model for Hybrid Motor Nitrous Oxide Rocket Propulsion System
 
 # Fix for MATLAB R2020b/R2020a (IMPORTANT):
