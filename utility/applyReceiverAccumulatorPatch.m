@@ -32,6 +32,7 @@ if ~copySuccess
    patchAppliedInp = input('Have you successfully applied the patch? (y/n)', 's');
    if(patchAppliedInp == 'y')
        disp('Creating file to remember that you have done the patch...');
+       makePaths();
        fid = fopen(patchTestFilePath, 'w');
        fprintf(fid, 'receiver_accumulator.sscp patched manually at %s for version %s', datestr(datetime('now')), version());
        fclose(fid);
