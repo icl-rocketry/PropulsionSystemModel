@@ -99,12 +99,13 @@ function [Cp, Cv, PVap] = getProps(p, u, substance, coolpropFun, p_crit)
     u_Jkg = u*1e3;
     Cp = coolpropFun('Cpmass', 'P', p_Pa, 'U', u_Jkg, substance);
     Cv = coolpropFun('Cvmass', 'P', p_Pa, 'U', u_Jkg, substance); %J/kg/K
-    if(p >= p_crit)
+    T = coolpropFun('T', 'P', p_Pa, 'U', u_Jkg, substance);
+    T_crit = coolpropFun('T', 'P', p_crit*1e6, 'Q', 0, substance);
+    if(p >= p_crit && T >= T_crit)
        PVap = p_crit;
        return;
     end
     
-    T = coolpropFun('T', 'P', p_Pa, 'U', u_Jkg, substance);
     PVap_Pa = coolpropFun('P', 'T', T, 'Q', 0, substance);
     PVap = PVap_Pa / 1e6; %PVap is the vapour pressure for the same temperature that the substance is at for the given (P, U)
 end
