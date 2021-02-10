@@ -7,7 +7,8 @@ component simpleTank
 % there is no smooth blending (currently).
 % The tank also assumes that all fluid and ports have exactly the same pressure - eg. neglects momentum or gravity
 % Port L is the current fraction of the tank volume taken up by liquid
-% Port M is the current total mass of the tank contents (all phases)
+% Port ML is the current mass of the liquid tank contents
+% Port MV is the current mass of the vapor tank contents
 % Port T is the current temperature of the tank contents (fluid temp)
 
 nodes
@@ -21,11 +22,13 @@ end
 
 outputs
     L; % L:right
-    M = {0, 'kg'}; % M:right
+    ML = {0, 'kg'}; % ML:right
+    MV = {0, 'kg'}; % MV:right
     T = {0, 'K'}; %T:right
 end
 
 annotations
+    Icon = 'icon/nitrousTank.png';
     AV : Side = left;
     BV : Side = right;
     AL : Side = left;
@@ -194,7 +197,8 @@ equations
         BL.u == u_BL;
         
         % Set output port values
-        M == totalFluidMass;
+        ML == m_liq;
+        MV == m_vap;
         T == T_tank;
         L == liq_vol_fraction; %Liquid volume fraction
     end
