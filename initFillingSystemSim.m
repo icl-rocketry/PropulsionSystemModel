@@ -6,7 +6,7 @@ Sim.nitrousFluidTable = dataLoaded.nitrousFluidTable;%getNitrousFluidTable();
 Sim.PAmbient = 101325; %Pa
 
 Sim.runTank.volume = 0.8*(0.25*pi*(150e-3).^2); %m^3
-Sim.runTank.PInit = 60e5; %Pascal. Very temperature dependent. Eg. 0C->31bar, 20C->50bar, 30C->63bar    
+Sim.runTank.PInit = 1e5; %Pascal. Very temperature dependent. Eg. 0C->31bar, 20C->50bar, 30C->63bar    
 
 Sim.extTank.volume = 1*0.25*pi*(20e-2).^2; %volume of external tank m^3
 Sim.extTank.pressure = 50e5; %pressure of external tank Pa. function takes values in deg C & assumes in v-L equilibrium
