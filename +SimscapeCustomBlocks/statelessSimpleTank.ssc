@@ -10,19 +10,21 @@ component statelessSimpleTank
 % Port ML is the current mass of the liquid tank contents
 % Port MV is the current mass of the vapor tank contents
 % Port T is the current temperature of the tank contents (fluid temp)
+% Node N is a 2 phase fluid connection used only for fluid properties
+% Node Props is a connection to custom extra_two_phase_fluid_props
+% Port P is the current pressure in MPa
+% Port M is the current total nitrous mass in kg (liquid+ox)
+% Port T_w is the current wall temperature in K used for heat transfer if heat transfer is enabled
+% Port Mdot_liq_drain is the current mass flow rate in kg/s out of the tank
 
 nodes
-    N = foundation.two_phase_fluid.two_phase_fluid; %N:left
-%     BV = foundation.two_phase_fluid.two_phase_fluid; % BV:right
-%     N = foundation.two_phase_fluid.two_phase_fluid; % N:left
-%     BL = foundation.two_phase_fluid.two_phase_fluid; % BL:right
-%     H = foundation.thermal.thermal;                 % H:left
+    N = foundation.two_phase_fluid.two_phase_fluid; %2P_Props:left
     Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
 end
 
 inputs
     % Reservoir pressure
-    p_tank = {101325, 'Pa'}; % P:left
+    p_tank = {0.3, 'MPa'}; % P:left
     % Total mass of nitrous inside
     totalFluidMass = {6, 'kg'}; %M: left
     % Temp of tank inside wall for heat transfer
@@ -39,6 +41,11 @@ outputs
 %     dTdt = {0, 'K/s'};
 end
 
+branches
+    mdot_N : N.mdot -> *;
+    Phi_N  : N.Phi  -> *;
+end
+
 annotations
     Icon = 'icon/nitrousTank.png';
     Props : Side = top;
@@ -51,11 +58,20 @@ parameters
     alpha_L = {100, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to liquid
     alpha_V = {20, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to vapour
     heat_surface_area = {6, 'm^2'} %Total internal surface area available for heat transfer
+    enableHeatTransferFromWall = true; %Whether or not to enable heat transfer from wall to fluid
 end
 
 variables (Access=private)   
-    u_tank = {1500,     'kJ/kg'}; %Gets solved for each timestep
-    u_outlet        = {1500, 'kJ/kg' }; % Specific internal energy at outlet
+    u_tank = {value={1500,     'kJ/kg'}, priority = priority.high}; %Gets solved for each timestep
+    du_tank_dt = {value={0, 'kJ/(kg*s)'}, priority = priority.high};
+    mdot_N = {0, 'kg/s'}; % Mass flow rate into properties only port
+    Phi_N  = {0, 'kW'  }; % Energy flow rate into properties only port
+    u_N = {1500, 'kJ/kg'};
+end
+
+% Parameter checks
+equations
+    assert(mdotLiqDrainOut >= 0)
 end
 
 equations    
@@ -101,6 +117,13 @@ equations
                 T_whole_tank
             end;
             
+        u_outlet = ...
+            if is_sat, ...
+                u_sat_liq_tank
+            else ...
+                u_tank
+            end
+            
         m_liq = is_sat * m_liq_sat + is_all_liq * totalFluidMass;
         m_vap = is_sat * m_vap_sat + is_all_vap * totalFluidMass;
                 
@@ -110,13 +133,13 @@ equations
         liq_vol_fraction = vol_Liq / tank_volume;
         
         % Heat transfer between the tank wall and the fluid
-        Q_H = (liq_vol_fraction) * alpha_L * heat_surface_area * (T_w - T_tank) + ...
-            (1-liq_vol_fraction) * alpha_V * heat_surface_area * (T_w - T_tank);
+        Q_H = (liq_vol_fraction) * alpha_L * heat_surface_area * (T_w - T_tank) * enableHeatTransferFromWall + ...
+            (1-liq_vol_fraction) * alpha_V * heat_surface_area * (T_w - T_tank) * enableHeatTransferFromWall;
         
         %Velocity at ports
         velocity_out = (mdotLiqDrainOut * v_Liq) / areaL;
         
-        phi_out = (u_outlet + p_tank*v_Liq + (velocity_out)^2/2);
+        phi_out = mdotLiqDrainOut*(u_outlet + p_tank*v_Liq + (velocity_out)^2/2);
     in
         
         if is_sat
@@ -127,12 +150,16 @@ equations
             v_whole_tank == tank_volume / totalFluidMass;
         end
         
-        %Mass conservation
-%         der(totalFluidMass) == -mdotLiqDrainOut;
+        % Make sure connection for fluid properties has no fluid going through it but is solvable:
+        N.p == p_tank;
+        convection_N.ht_I == u_N + p_tank*v_Liq;
+        convection_N.Phi == Phi_N;
+        convection_N.mdot == mdot_N;
+        N.u == u_N;
         
-%         % Energy conservation
-%         totalFluidMass*der(u_tank) + (-mdotLiqDrainOut)*u_tank ...
-%             == -phi_out + Q_H;
+        % Energy conservation
+        totalFluidMass*du_tank_dt + (-mdotLiqDrainOut)*u_tank ...
+            == -phi_out + Q_H;
         
         % Set output port values
         ML == m_liq;
@@ -140,6 +167,15 @@ equations
         T == T_tank;
         L == liq_vol_fraction; %Liquid volume fraction
     end
+end
+
+% Internal components that calculate energy convection at ports A and B
+components (ExternalAccess=none)
+    convection_N = foundation.two_phase_fluid.port_convection(flow_area = areaL, length_scale = sqrt(4*areaL/pi));
+end
+
+connections
+    connect(N, convection_N.port)
 end
     
 end
