@@ -5,17 +5,15 @@ component statelessSimpleTank
 % The liquid and vapor ports will always output liquid and vapor respectively when the tank has both phases within,
 % if one of the phases runs out then the port will instanteously jump to outputting the correct phase -
 % there is no smooth blending (currently).
-% The tank also assumes that all fluid and ports have exactly the same pressure - eg. neglects momentum or gravity
-% Port L is the current fraction of the tank volume taken up by liquid
-% Port ML is the current mass of the liquid tank contents
-% Port MV is the current mass of the vapor tank contents
-% Port T is the current temperature of the tank contents (fluid temp)
-% Node N is a 2 phase fluid connection used only for fluid properties
-% Node Props is a connection to custom extra_two_phase_fluid_props
-% Port P is the current pressure in MPa
-% Port M is the current total nitrous mass in kg (liquid+ox)
-% Port T_w is the current wall temperature in K used for heat transfer if heat transfer is enabled
-% Port Mdot_liq_drain is the current mass flow rate in kg/s out of the tank
+% The tank also assumes that all fluid has exactly the same pressure - eg. neglects momentum or gravity.
+% Port L is the current fraction of the tank volume taken up by liquid.
+% Port ML is the current mass of the liquid tank contents.
+% Port MV is the current mass of the vapor tank contents.
+% Port T is the current temperature of the tank contents (fluid temp).
+% Node N is a 2 phase fluid connection used only for fluid properties.
+% Node Props is a connection to custom extra_two_phase_fluid_props.
+% Port P is the current pressure in MPa.
+% Port M is the current total nitrous mass in kg (liquid+ox).
 
 nodes
     N = foundation.two_phase_fluid.two_phase_fluid; %2P_Props:left
@@ -27,9 +25,6 @@ inputs
     p_tank = {0.3, 'MPa'}; % P:left
     % Total mass of nitrous inside
     totalFluidMass = {6, 'kg'}; %M: left
-    % Temp of tank inside wall for heat transfer
-    T_w = {300, 'K'}; %T_w: left
-    mdotLiqDrainOut = {0, 'kg/s'}; %Mdot_liq_drain: left
 end
 
 outputs
@@ -37,8 +32,6 @@ outputs
     ML = {0, 'kg'}; % ML:right
     MV = {0, 'kg'}; % MV:right
     T = {0, 'K'}; %T:right
-%     dPdt = {0, 'Pa/s'};
-%     dTdt = {0, 'K/s'};
 end
 
 branches
@@ -52,26 +45,15 @@ annotations
 end
 
 parameters
-    areaL = {0.01, 'm^2'}; % Cross-sectional area at liquid ports
-    areaV = {0.01, 'm^2'}; %Cross-sectional area at vapour ports
+    areaL = {0.01, 'm^2'}; % Cross-sectional area at liquid port
     tank_volume = {2, 'm^3'}; %Internal volume of tank
-    alpha_L = {100, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to liquid
-    alpha_V = {20, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to vapour
-    heat_surface_area = {6, 'm^2'} %Total internal surface area available for heat transfer
-    enableHeatTransferFromWall = true; %Whether or not to enable heat transfer from wall to fluid
 end
 
 variables (Access=private)   
     u_tank = {value={1500,     'kJ/kg'}, priority = priority.high}; %Gets solved for each timestep
-    du_tank_dt = {value={0, 'kJ/(kg*s)'}, priority = priority.high};
     mdot_N = {0, 'kg/s'}; % Mass flow rate into properties only port
     Phi_N  = {0, 'kW'  }; % Energy flow rate into properties only port
     u_N = {1500, 'kJ/kg'};
-end
-
-% Parameter checks
-equations
-    assert(mdotLiqDrainOut >= 0)
 end
 
 equations    
@@ -131,15 +113,6 @@ equations
         vol_Liq = m_liq * v_Liq;
         
         liq_vol_fraction = vol_Liq / tank_volume;
-        
-        % Heat transfer between the tank wall and the fluid
-        Q_H = (liq_vol_fraction) * alpha_L * heat_surface_area * (T_w - T_tank) * enableHeatTransferFromWall + ...
-            (1-liq_vol_fraction) * alpha_V * heat_surface_area * (T_w - T_tank) * enableHeatTransferFromWall;
-        
-        %Velocity at ports
-        velocity_out = (mdotLiqDrainOut * v_Liq) / areaL;
-        
-        phi_out = mdotLiqDrainOut*(u_outlet + p_tank*v_Liq + (velocity_out)^2/2);
     in
         
         if is_sat
@@ -156,10 +129,6 @@ equations
         convection_N.Phi == Phi_N;
         convection_N.mdot == mdot_N;
         N.u == u_N;
-        
-        % Energy conservation
-        totalFluidMass*du_tank_dt + (-mdotLiqDrainOut)*u_tank ...
-            == -phi_out + Q_H;
         
         % Set output port values
         ML == m_liq;
