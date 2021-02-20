@@ -1,0 +1,145 @@
+component statelessSimpleTank
+% Stateless Simple 2 phase tank
+% This models a tank of two phase in a simple manner where it is assumed that the phases
+% are always in equilibrium (Have exactly their saturation properties and same temperature when both co-existing).
+% The liquid and vapor ports will always output liquid and vapor respectively when the tank has both phases within,
+% if one of the phases runs out then the port will instanteously jump to outputting the correct phase -
+% there is no smooth blending (currently).
+% The tank also assumes that all fluid and ports have exactly the same pressure - eg. neglects momentum or gravity
+% Port L is the current fraction of the tank volume taken up by liquid
+% Port ML is the current mass of the liquid tank contents
+% Port MV is the current mass of the vapor tank contents
+% Port T is the current temperature of the tank contents (fluid temp)
+
+nodes
+    N = foundation.two_phase_fluid.two_phase_fluid; %N:left
+%     BV = foundation.two_phase_fluid.two_phase_fluid; % BV:right
+%     N = foundation.two_phase_fluid.two_phase_fluid; % N:left
+%     BL = foundation.two_phase_fluid.two_phase_fluid; % BL:right
+%     H = foundation.thermal.thermal;                 % H:left
+    Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
+end
+
+inputs
+    % Reservoir pressure
+    p_tank = {101325, 'Pa'}; % P:left
+    % Total mass of nitrous inside
+    totalFluidMass = {6, 'kg'}; %M: left
+    % Temp of tank inside wall for heat transfer
+    T_w = {300, 'K'}; %T_w: left
+    mdotLiqDrainOut = {0, 'kg/s'}; %Mdot_liq_drain: left
+end
+
+outputs
+    L; % L:right
+    ML = {0, 'kg'}; % ML:right
+    MV = {0, 'kg'}; % MV:right
+    T = {0, 'K'}; %T:right
+%     dPdt = {0, 'Pa/s'};
+%     dTdt = {0, 'K/s'};
+end
+
+annotations
+    Icon = 'icon/nitrousTank.png';
+    Props : Side = top;
+end
+
+parameters
+    areaL = {0.01, 'm^2'}; % Cross-sectional area at liquid ports
+    areaV = {0.01, 'm^2'}; %Cross-sectional area at vapour ports
+    tank_volume = {2, 'm^3'}; %Internal volume of tank
+    alpha_L = {100, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to liquid
+    alpha_V = {20, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to vapour
+    heat_surface_area = {6, 'm^2'} %Total internal surface area available for heat transfer
+end
+
+variables (Access=private)   
+    u_tank = {1500,     'kJ/kg'}; %Gets solved for each timestep
+    u_outlet        = {1500, 'kJ/kg' }; % Specific internal energy at outlet
+end
+
+equations    
+    let
+        % Properties for when tank is treated as one bulk fluid (Eg. when not saturated)
+        unorm_tank = foundation.two_phase_fluid.normalized_internal_energy(u_tank, p_tank, ...
+            N.u_min, N.u_max, N.p_TLU, N.u_sat_liq_TLU, N.u_sat_vap_TLU);
+        T_whole_tank = tablelookup(N.unorm_TLU, N.p_TLU, N.T_TLU, unorm_tank, p_tank, interpolation=linear, extrapolation=linear);
+        X_whole_tank = simscape.function.limit(unorm_tank, 0, 1, false); %Vapour quality for when whole tank is one substance
+        v_whole_tank = tablelookup(N.unorm_TLU, N.p_TLU, N.v_TLU, unorm_tank, p_tank, interpolation=linear, extrapolation=linear);
+        
+        % Saturation properties
+        v_sat_liq_tank  = tablelookup(N.unorm_TLU, N.p_TLU, N.v_TLU,  0, p_tank, interpolation=linear, extrapolation=linear);
+        v_sat_vap_tank  = tablelookup(N.unorm_TLU, N.p_TLU, N.v_TLU,  1, p_tank, interpolation=linear, extrapolation=linear);
+        u_sat_liq_tank = tablelookup(N.p_TLU, N.u_sat_liq_TLU, p_tank, interpolation=linear, extrapolation=linear);
+        u_sat_vap_tank = tablelookup(N.p_TLU, N.u_sat_vap_TLU, p_tank, interpolation=linear, extrapolation=linear);
+        T_sat_liq_tank = tablelookup(N.unorm_TLU, N.p_TLU, N.T_TLU, 0, p_tank, interpolation=linear, extrapolation=linear);
+        
+        m_liq_sat = (tank_volume - totalFluidMass * v_sat_vap_tank) / (v_sat_liq_tank - v_sat_vap_tank);
+        m_vap_sat = (tank_volume - totalFluidMass * v_sat_liq_tank) / (v_sat_vap_tank - v_sat_liq_tank);
+        is_sat = m_liq_sat>0 && m_vap_sat>0;
+        is_all_liq = is_sat == 0 && X_whole_tank < 0.05;
+        is_all_vap = is_sat == 0 && is_all_liq == 0;
+        
+        %Specific volumes in liq and vap regions
+        v_Liq = ...
+            if is_sat, ...
+                v_sat_liq_tank
+            else ...
+                v_whole_tank
+            end;
+        v_Vap = ...
+            if is_sat, ...
+                v_sat_vap_tank
+            else ...
+                v_whole_tank
+            end;
+            
+        T_tank = ...
+            if is_sat, ...
+                T_sat_liq_tank
+            else ...
+                T_whole_tank
+            end;
+            
+        m_liq = is_sat * m_liq_sat + is_all_liq * totalFluidMass;
+        m_vap = is_sat * m_vap_sat + is_all_vap * totalFluidMass;
+                
+        vol_Vapor = m_vap * v_Vap;
+        vol_Liq = m_liq * v_Liq;
+        
+        liq_vol_fraction = vol_Liq / tank_volume;
+        
+        % Heat transfer between the tank wall and the fluid
+        Q_H = (liq_vol_fraction) * alpha_L * heat_surface_area * (T_w - T_tank) + ...
+            (1-liq_vol_fraction) * alpha_V * heat_surface_area * (T_w - T_tank);
+        
+        %Velocity at ports
+        velocity_out = (mdotLiqDrainOut * v_Liq) / areaL;
+        
+        phi_out = (u_outlet + p_tank*v_Liq + (velocity_out)^2/2);
+    in
+        
+        if is_sat
+            %Total energy need to be sum of energy from each phase
+            u_sat_liq_tank * m_liq_sat + u_sat_vap_tank * m_vap_sat == u_tank * totalFluidMass;
+        else
+            %Density of single fluid phase needs to be correct
+            v_whole_tank == tank_volume / totalFluidMass;
+        end
+        
+        %Mass conservation
+%         der(totalFluidMass) == -mdotLiqDrainOut;
+        
+%         % Energy conservation
+%         totalFluidMass*der(u_tank) + (-mdotLiqDrainOut)*u_tank ...
+%             == -phi_out + Q_H;
+        
+        % Set output port values
+        ML == m_liq;
+        MV == m_vap;
+        T == T_tank;
+        L == liq_vol_fraction; %Liquid volume fraction
+    end
+end
+    
+end
