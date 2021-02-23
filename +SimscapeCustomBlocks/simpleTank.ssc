@@ -98,7 +98,7 @@ equations
         unorm_tank = foundation.two_phase_fluid.normalized_internal_energy(u_tank, p_tank, ...
             AL.u_min, AL.u_max, AL.p_TLU, AL.u_sat_liq_TLU, AL.u_sat_vap_TLU);
         T_whole_tank = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.T_TLU, unorm_tank, p_tank, interpolation=linear, extrapolation=linear);
-        X_whole_tank = simscape.function.limit(unorm_calc, 0, 1, false); %Vapour quality for when whole tank is one substance
+        X_whole_tank = simscape.function.limit(unorm_tank, 0, 1, false); %Vapour quality for when whole tank is one substance
         v_whole_tank = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.v_TLU, unorm_tank, p_tank, interpolation=linear, extrapolation=linear);
         
         % Saturation properties

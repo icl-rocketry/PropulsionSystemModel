@@ -26,7 +26,7 @@ end
 T_flame = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.TFlame,P_cc,OF);  % [K] 
 gamma = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.gamma,P_cc,OF);      % [-]
 m_mol = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.molarMass,P_cc,OF);      % [kg/mol]
-R = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.gasConstant,P_cc,OF); %Specific gas constant
+R = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.gasConstant,P_cc,OF); %Specific gas constant [J/kgK]
 rho = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.density,P_cc,OF); %kg/m^3
 isentropicExponent = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.isentropicExponent,P_cc,OF); %p*v^k = constant for isentropic
 
