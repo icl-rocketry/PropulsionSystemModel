@@ -1,7 +1,7 @@
 doPatch();
 
 function doPatch()
-disp("Checking if MATLAB has patched reciver accumulator version...");
+disp("Checking if MATLAB has patched reciver accumulator version (Updated 23/02/2021)...");
 matlabDir = '';
 patchDirPath = '';
 fullPatchDirPath = '';
@@ -58,7 +58,7 @@ fclose(fid);
         filesep '+two_phase_fluid' filesep '+tanks_accumulators'];
         fullPatchDirPath = fullfile([matlabDir filesep patchDirPath]);
         patchFilePath = fullfile([fullPatchDirPath filesep 'receiver_accumulator.sscp']);
-        patchTestFilePath = fullfile(['receiverAccumulatorPatchedLog.txt']); %If this exists then is patched
+        patchTestFilePath = fullfile(['receiverAccumulatorPatchedLog2.txt']); %If this exists then is patched
     end
 
 end
