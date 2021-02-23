@@ -49,8 +49,8 @@ Sim.combustionChamber.useOxFluxRegRateEquation = 1; %If 1 then uses rdot=a*Gox^n
 %From fitting very approximately to results from Shani model (Implementing
 %Shani model would be much better)
 %https://drive.google.com/file/d/1nFCp3qxr5mZa92okDZEKBcNdREDE7amt/view
-Sim.combustionChamber.regRateParams.a = 0.17243e-3;
-Sim.combustionChamber.regRateParams.n = 0.5269;
+Sim.combustionChamber.regRateParams.a = 0.00016572;
+Sim.combustionChamber.regRateParams.n = 0.53253;
 Sim.combustionChamber.regRateParams.m = NaN; %Unused
 
 %Numbers from adam bakers excel file for rdot=a*Gprop^n*length^m
