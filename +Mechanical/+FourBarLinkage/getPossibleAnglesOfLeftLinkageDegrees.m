@@ -2,8 +2,7 @@ function angles = getPossibleAnglesOfLeftLinkageDegrees(g, b, a, h, angleOfRight
 %Use the mirror image of this four bar linkage to determine
 angleOfRightLinkageDegrees2 = 180-angleOfRightLinkageDegrees;
 roots = Mechanical.FourBarLinkage.getPossibleAnglesOfRightLinkageDegrees(g, a, b, h, angleOfRightLinkageDegrees2);
-angles(1) = clampDeg(180-roots(1));
-angles(2) = clampDeg(180-roots(2));
+angles = [clampDeg(180-roots(1)), clampDeg(180-roots(2))];
 
     function angle = clampDeg(angle)
         while (angle < 0)
