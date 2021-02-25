@@ -2,6 +2,7 @@ clear
 
 dataLoaded = load('+NitrousFluidProps/NitrousFluidTables.mat'); % Extended
 Sim.nitrousFluidTable = dataLoaded.nitrousFluidTable;%getNitrousFluidTable(); 
+Sim.extraNitrousPropsTable = getExtraNitrousFluidTable();
 
 Sim.PAmbient = 101325; %Pa
 
