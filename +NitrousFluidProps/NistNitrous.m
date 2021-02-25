@@ -134,5 +134,20 @@ classdef NistNitrous
             end
             val = val/1000; %Convert to 1/Pa
         end
+        
+        %Function to get the isobaric expansion constant (1/K) for the gas
+        %at a given temp (K) and Pressure (Pa)
+        function val = getGasIsobaricExpansion(T,P)
+            P1 = P/1000; %Need gas in kPa using tabulated data
+            data = NitrousFluidProps.NistNitrous...
+                .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'gasIsobaricExpansion.txt']); 
+            val = NitrousFluidProps.NistNitrous.interpScattered2D(...
+                data(:,1),data(:,2),data(:,3),1,200,T,P1);
+            if isnan(val)
+                warning('Interpolating outside of dataset');
+                val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
+            end
+            val = val/1000; %Convert to 1/Pa
+        end
     end
 end
