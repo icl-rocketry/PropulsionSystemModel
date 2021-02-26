@@ -30,7 +30,7 @@ cp_vap     = zeros(numRowsLiquidPhase, numPressureVals);
 cv_vap     = zeros(numRowsVapourPhase, numPressureVals);
 pvap_vap     = zeros(numRowsVapourPhase, numPressureVals);
 beta_vap     = zeros(numRowsVapourPhase, numPressureVals);
-
+beta_liq     = zeros(numRowsLiquidPhase, numPressureVals);
 % Init coolprop
 
 % Check Python availability
@@ -46,8 +46,10 @@ coolpropFun = str2func(installPath);
 for j = 1 : n_sub
     i = numRowsLiquidPhase;
     %Only define for above triple point
-    [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j)] ...
+    [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j), T_temp] ...
             = getSatProps(p(j), 0, substance, coolpropFun);
+        
+    beta_liq(i,j) = NitrousFluidProps.NistNitrous.getLiquidIsobaricExpansion(T_temp, pvap_liq(i,j));
     i = 1;
     [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j), T_temp] ...
         = getSatProps(p(j), 1, substance, coolpropFun);
@@ -59,11 +61,16 @@ end
 for j = n_sub+1 : numPressureVals
     [cp_liq(numRowsLiquidPhase,j), cv_liq(numRowsLiquidPhase,j), pvap_liq(numRowsLiquidPhase,j), T_temp] ...
         = getProps(p(j), nitrousFluidTable.liquid.u_sat(j), substance, coolpropFun, p_crit);
+    
+    beta_liq(numRowsLiquidPhase,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+        T_temp, pvap_liq(numRowsLiquidPhase,j));
+    
     cp_vap(1,j) = cp_liq(numRowsLiquidPhase,j);
     cv_vap(1,j) = cv_liq(numRowsLiquidPhase,j);
     pvap_vap(1,j) = pvap_vap(numRowsLiquidPhase,j);
     
-    beta_vap(1,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(T_temp, pvap_vap(1,j));
+    beta_vap(1,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+        T_temp, pvap_vap(1,j));
 end
 
 % Fill in arrays with fluid properties
@@ -71,6 +78,9 @@ for j = 1 : numPressureVals
     for i = 1 : numRowsLiquidPhase-1
         [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j)] ...
                 = getProps(p(j), nitrousFluidTable.liquid.u(i,j), substance, coolpropFun, p_crit);
+            
+        beta_liq(i,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+            T_temp, pvap_vap(i,j));
     end
     for i = 2 : numRowsVapourPhase
         [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j), T_temp] ...
@@ -88,6 +98,7 @@ extraFluidProps.liquid.cp = cp_liq;
 extraFluidProps.liquid.cv = cv_liq;
 extraFluidProps.liquid.pvap = pvap_liq;
 extraFluidProps.liquid.unorm = nitrousFluidTable.liquid.unorm;
+extraFluidProps.liquid.beta = beta_liq;
 extraFluidProps.vapor.cp = cp_vap;
 extraFluidProps.vapor.cv = cv_vap;
 extraFluidProps.vapor.pvap = pvap_vap;
