@@ -147,11 +147,10 @@ classdef NistNitrous
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
-            val = val/1000; %Convert to 1/Pa
         end
         
-        %Function to get the isobaric expansion constant (1/K) for the gas
-        %at a given temp (K) and Pressure (Pa)
+        %Function to get the isobaric expansion constant (1/K) for the
+        %liquid at a given temp (K) and Pressure (Pa)
         function val = getLiquidIsobaricExpansion(T,P)
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
@@ -162,7 +161,6 @@ classdef NistNitrous
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
-            val = val/1000; %Convert to 1/Pa
         end
     end
 end

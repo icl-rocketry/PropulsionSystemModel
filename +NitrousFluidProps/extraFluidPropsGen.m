@@ -29,7 +29,8 @@ pvap_liq     = zeros(numRowsVapourPhase, numPressureVals);
 cp_vap     = zeros(numRowsLiquidPhase, numPressureVals);
 cv_vap     = zeros(numRowsVapourPhase, numPressureVals);
 pvap_vap     = zeros(numRowsVapourPhase, numPressureVals);
-
+beta_vap     = zeros(numRowsVapourPhase, numPressureVals);
+beta_liq     = zeros(numRowsLiquidPhase, numPressureVals);
 % Init coolprop
 
 % Check Python availability
@@ -45,20 +46,33 @@ coolpropFun = str2func(installPath);
 for j = 1 : n_sub
     i = numRowsLiquidPhase;
     %Only define for above triple point
-    [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j)] ...
+    [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j), T_temp] ...
             = getSatProps(p(j), 0, substance, coolpropFun);
+        
+    beta_liq(i,j) = NitrousFluidProps.NistNitrous.getLiquidIsobaricExpansion(...
+        T_temp, pvap_liq(i,j));
     i = 1;
-    [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j)] ...
+    [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j), T_temp] ...
         = getSatProps(p(j), 1, substance, coolpropFun);
+    
+    beta_vap(i,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+        T_temp, pvap_vap(i, j));
 end
 
 % Fill in fluid properties along the extended saturation boundary
 for j = n_sub+1 : numPressureVals
-    [cp_liq(numRowsLiquidPhase,j), cv_liq(numRowsLiquidPhase,j), pvap_liq(numRowsLiquidPhase,j)] ...
+    [cp_liq(numRowsLiquidPhase,j), cv_liq(numRowsLiquidPhase,j), pvap_liq(numRowsLiquidPhase,j), T_temp] ...
         = getProps(p(j), nitrousFluidTable.liquid.u_sat(j), substance, coolpropFun, p_crit);
+    
+    beta_liq(numRowsLiquidPhase,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+        T_temp, pvap_liq(numRowsLiquidPhase,j));
+    
     cp_vap(1,j) = cp_liq(numRowsLiquidPhase,j);
     cv_vap(1,j) = cv_liq(numRowsLiquidPhase,j);
     pvap_vap(1,j) = pvap_vap(numRowsLiquidPhase,j);
+    
+    beta_vap(1,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+        T_temp, pvap_vap(1,j));
 end
 
 % Fill in arrays with fluid properties
@@ -66,10 +80,16 @@ for j = 1 : numPressureVals
     for i = 1 : numRowsLiquidPhase-1
         [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j)] ...
                 = getProps(p(j), nitrousFluidTable.liquid.u(i,j), substance, coolpropFun, p_crit);
+            
+        beta_liq(i,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+            T_temp, pvap_liq(i,j));
     end
     for i = 2 : numRowsVapourPhase
-        [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j)] ...
+        [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j), T_temp] ...
                 = getProps(p(j), nitrousFluidTable.liquid.u(i,j), substance, coolpropFun, p_crit);
+        
+        beta_vap(i,j) = NitrousFluidProps.NistNitrous.getGasIsobaricExpansion(...
+            T_temp, pvap_vap(i, j));
     end
 end
 
@@ -78,23 +98,27 @@ extraFluidProps.liquid.cp = cp_liq;
 extraFluidProps.liquid.cv = cv_liq;
 extraFluidProps.liquid.pvap = pvap_liq;
 extraFluidProps.liquid.unorm = nitrousFluidTable.liquid.unorm;
+extraFluidProps.liquid.beta = beta_liq;
 extraFluidProps.vapor.cp = cp_vap;
 extraFluidProps.vapor.cv = cv_vap;
 extraFluidProps.vapor.pvap = pvap_vap;
+extraFluidProps.vapor.beta = beta_vap;
 extraFluidProps.vapor.unorm = nitrousFluidTable.vapor.unorm;
 extraFluidProps.p = nitrousFluidTable.p;
 
 save('+NitrousFluidProps/NitrousExtraFluidProps.mat', 'extraFluidProps');
 disp("Done!");
 
-function [Cp, Cv, PVap] = getSatProps(p, x, substance, coolpropFun)
+function [Cp, Cv, PVap, T] = getSatProps(p, x, substance, coolpropFun)
     p_Pa = p*1e6; 
     Cp = coolpropFun('Cpmass', 'P', p_Pa, 'Q', x, substance); %J/kg/K
     Cv = coolpropFun('Cvmass', 'P', p_Pa, 'Q', x, substance); %J/kg/K
+    T = coolpropFun('T', 'P', p_Pa, 'Q', x, substance); % K
     PVap = p;
 end
 
-function [Cp, Cv, PVap] = getProps(p, u, substance, coolpropFun, p_crit)
+% T is returned to call Nist.Nitrous.getGasIsobaricExpansion(P,T)
+function [Cp, Cv, PVap, T] = getProps(p, u, substance, coolpropFun, p_crit)
     p_Pa = p*1e6;
     u_Jkg = u*1e3;
     Cp = coolpropFun('Cpmass', 'P', p_Pa, 'U', u_Jkg, substance);
