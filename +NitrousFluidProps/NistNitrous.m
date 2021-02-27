@@ -155,6 +155,8 @@ classdef NistNitrous
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'liquidIsobaricExpansion.txt']); 
+            % I believe interpolation breaks at critical T for liquid
+            % dataset
             val = NitrousFluidProps.NistNitrous.interpScattered2D(...
                 data(:,1),data(:,2),data(:,3),1,200,T,P1);
             if isnan(val)
