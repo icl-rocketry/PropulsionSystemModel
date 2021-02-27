@@ -63,7 +63,6 @@ classdef NistNitrous
         end
         
         function val = interpScattered2D(x,y,z,xStep,yStep,xq,yq)
-            disp([xq,yq])
             [Xq,Yq] = meshgrid(min(x):xStep:max(x), min(y):yStep:max(y));
             Zq = griddata(x,y,z,Xq,Yq);
             try
@@ -153,7 +152,7 @@ classdef NistNitrous
         
         %Function to get the isobaric expansion constant (1/K) for the gas
         %at a given temp (K) and Pressure (Pa)
-        function val = getLiquidIsobaricExpansion(T,P) % throws error for P = 0
+        function val = getLiquidIsobaricExpansion(T,P)
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'liquidIsobaricExpansion.txt']); 
