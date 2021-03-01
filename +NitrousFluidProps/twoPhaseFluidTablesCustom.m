@@ -326,7 +326,7 @@ end
 end
 
 
-% Prepares either REFPROP or CoolProp to perform calculations for hte
+% Prepares either REFPROP or CoolProp to perform calculations for the
 % specified substance
 function [criticalTriplePressure, saturationProperties, fluidProperties, specificHeat, objCleanup] ...
     = initialize(installPath, substance)
