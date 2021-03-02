@@ -37,7 +37,7 @@ Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
 Sim.combustionChamber.rhoFuel = 953; %kg/m^3 (density)
 Sim.combustionChamber.combustionEfficiency = 0.95;
 Sim.combustionChamber.PChamberInit = 27e5;
-Sim.combustionChamber.portLength = 600e-3; %m. "Lp" in SPAD
+Sim.combustionChamber.portLength = 130e-3; %m. "Lp" in SPAD
 %Regression rate parameters, empirical
 Sim.combustionChamber.useOxFluxRegRateEquation = 1; %If 1 then uses rdot=a*Gox^n, if 0 then uses rdot=a*Gprop^n*length^m
 %McCormick et all 2005 for FR5560
@@ -59,8 +59,8 @@ Sim.combustionChamber.regRateParams.m = NaN; %Unused
 % Sim.combustionChamber.regRateParams.m = 0;
 %Port configuration, circular
 %Values for potentially possible pablo
-Sim.combustionChamber.initialPortDiameter = 26e-3; %m (Grain inner diam)
-grainOuterDiam = 63.5e-3; %m
+Sim.combustionChamber.initialPortDiameter = 20e-3; %m (Grain inner diam)
+grainOuterDiam = 70e-3;%63.5e-3; %m
 Sim.combustionChamber.initialFuelWebThickness = grainOuterDiam-Sim.combustionChamber.initialPortDiameter; %m (Grain outer diam - inner diam)
 
 %%
