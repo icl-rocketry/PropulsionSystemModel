@@ -66,9 +66,29 @@ classdef NistNitrous
             [Xq,Yq] = meshgrid(min(x):xStep:max(x), min(y):yStep:max(y));
             Zq = griddata(x,y,z,Xq,Yq);
             try
-                val = interp2(Xq,Yq,Zq,xq,yq,'spline');
+                val = interp2(Xq,Yq,Zq,xq,yq,"spline");
             catch
                 val = interp2(Xq,Yq,Zq,xq,yq);
+            end
+        end
+        
+        % this is useless, but i want to make sure it's definitely useless
+        % before deleting it
+        function val = customInterp1D(x,y,xq)
+            [~, idx1] = max(x(x < xq));
+            [~, idx2] = min(x(x > xq));
+            if isnumeric(idx1) && isnumeric(idx2) % interpolation
+                val = ((y(idx2) - y(idx1))/(x(idx2) - x(idx1)))*(xq - x(idx1)) + y(idx1);
+            elseif isnumeric(idx2) % extrapolation below
+                idx1 = idx2;
+                idx2 = idx2 + 1;
+                val = y(idx1) - ((y(idx2) - y(idx1))/(x(idx2) - x(idx1)))*(x(idx1) - xq);
+            elseif isnumeric(idx1) % extrapolation above
+                idx1 = idx1 - 1;
+                idx2 = idx1;
+                val = ((y(idx2) - y(idx1))/(x(idx2) - x(idx1)))*(xq - x(idx1)) + y(idx1);
+            else
+                error("interp1D failed \n idx1: %i, idx2: %i, xq: %g bar", idx1, idx2, xq)
             end
         end
     end
@@ -87,7 +107,6 @@ classdef NistNitrous
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
-            val = val/1000; %Convert to 1/Pa
         end
         
         %Function to get the thermal conductivity (W/m/K) for the liquid
@@ -102,7 +121,6 @@ classdef NistNitrous
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
-            val = val/1000; %Convert to 1/Pa
         end
         
         %Function to get the dynamic viscosity (Pa s) for the gas
@@ -117,7 +135,6 @@ classdef NistNitrous
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
-            val = val/1000; %Convert to 1/Pa
         end
         
         %Function to get the dynamic viscosity (Pa s) for the liquid
@@ -132,18 +149,20 @@ classdef NistNitrous
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
-            val = val/1000; %Convert to 1/Pa
         end
         
         %Function to get the isobaric expansion constant (1/K) for the gas
         %at a given temp (K) and Pressure (Pa)
-        function val = getGasIsobaricExpansion(T,P)
+        function val = getGasIsobaricExpansion(P,T)
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'gasIsobaricExpansion.txt']); 
             val = NitrousFluidProps.NistNitrous.interpScattered2D(...
                 data(:,1),data(:,2),data(:,3),1,200,T,P1);
+%             val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
+
             if isnan(val)
+                fprintf("val: %i, P: %i kPa\n", val, P/1e3)
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
@@ -151,15 +170,16 @@ classdef NistNitrous
         
         %Function to get the isobaric expansion constant (1/K) for the
         %liquid at a given temp (K) and Pressure (Pa)
-        function val = getLiquidIsobaricExpansion(T,P)
+        function val = getLiquidIsobaricExpansion(P,T)
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
-                .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'liquidIsobaricExpansion.txt']); 
-            % I believe interpolation breaks at critical T for liquid
-            % dataset
+                .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'liquidIsobaricExpansion.txt']);
             val = NitrousFluidProps.NistNitrous.interpScattered2D(...
                 data(:,1),data(:,2),data(:,3),1,200,T,P1);
+%             val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
+
             if isnan(val)
+                fprintf("val: %i, P: %i kPa\n", val, P/1e3)
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
             end
