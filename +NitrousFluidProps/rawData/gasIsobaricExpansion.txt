@@ -1,6 +1,6 @@
 Table: Isobaric coefficient of expansion [G]
 Temperature {K} 	Pressure {kPa} 	Isobaric coefficient of expansion {1/K} 	Uncertainty {1/K} 
-182.33	0.05	0.005484780	6.1e-8
+182.33	0.05	0.005484780 6.1e-8
 182.33	50	0.005741	6.2e-5
 186	0.05	0.005376540	5.1e-8
 186	50	0.005606	5.2e-5

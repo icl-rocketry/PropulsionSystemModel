@@ -62,14 +62,22 @@ classdef NistNitrous
            data = cachedData(fName); %Data is what we loaded from this file
         end
         
-        function val = interpScattered2D(x,y,z,xStep,yStep,xq,yq)
+        function [Xq,Yq,Zq] = genGridDataFromScattered(x,y,z,xStep,yStep)
             [Xq,Yq] = meshgrid(min(x):xStep:max(x), min(y):yStep:max(y));
-            Zq = griddata(x,y,z,Xq,Yq);
+            Zq = griddata(x,y,z,Xq,Yq,"v4");
+        end
+        
+        function val = interpScattered2DFromGrid(Xq,Yq,Zq,xq,yq)
             try
                 val = interp2(Xq,Yq,Zq,xq,yq,"spline");
             catch
                 val = interp2(Xq,Yq,Zq,xq,yq);
             end
+        end
+        
+        function val = interpScattered2D(x,y,z,xStep,yStep,xq,yq)
+            [Xq,Yq,Zq] = NitrousFluidProps.NistNitrous.genGridDataFromScattered(x,y,z,xStep,yStep);
+            val = NitrousFluidProps.NistNitrous.interpScattered2DFromGrid(Xq,Yq,Zq,xq,yq);
         end
         
         % this is useless, but i want to make sure it's definitely useless
@@ -101,8 +109,15 @@ classdef NistNitrous
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'gasThermalConductivity.txt']); 
-            val = NitrousFluidProps.NistNitrous.interpScattered2D(...
-                data(:,1),data(:,2),data(:,3),1,200,T,P1);
+            persistent grid;
+            if isempty(grid)
+                [grid.Xq,grid.Yq,grid.Zq] = NitrousFluidProps.NistNitrous.genGridDataFromScattered(...
+                    data(:,1),data(:,2),data(:,3),1,200);
+            end
+            val = NitrousFluidProps.NistNitrous.interpScattered2DFromGrid(...
+                grid.Xq,grid.Yq,grid.Zq,T,P1);
+%             val = NitrousFluidProps.NistNitrous.interpScattered2D(...
+%                 data(:,1),data(:,2),data(:,3),1,200,T,P1);
             if isnan(val)
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
@@ -115,8 +130,15 @@ classdef NistNitrous
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'liquidThermalConductivity.txt']); 
-            val = NitrousFluidProps.NistNitrous.interpScattered2D(...
-                data(:,1),data(:,2),data(:,3),1,200,T,P1);
+            persistent grid;
+            if isempty(grid)
+                [grid.Xq,grid.Yq,grid.Zq] = NitrousFluidProps.NistNitrous.genGridDataFromScattered(...
+                    data(:,1),data(:,2),data(:,3),1,200);
+            end
+            val = NitrousFluidProps.NistNitrous.interpScattered2DFromGrid(...
+                grid.Xq,grid.Yq,grid.Zq,T,P1);
+%             val = NitrousFluidProps.NistNitrous.interpScattered2D(...
+%                 data(:,1),data(:,2),data(:,3),1,200,T,P1);
             if isnan(val)
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
@@ -129,8 +151,15 @@ classdef NistNitrous
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'gasViscosity.txt']); 
-            val = NitrousFluidProps.NistNitrous.interpScattered2D(...
-                data(:,1),data(:,2),data(:,3),1,200,T,P1);
+            persistent grid;
+            if isempty(grid)
+                [grid.Xq,grid.Yq,grid.Zq] = NitrousFluidProps.NistNitrous.genGridDataFromScattered(...
+                    data(:,1),data(:,2),data(:,3),1,200);
+            end
+            val = NitrousFluidProps.NistNitrous.interpScattered2DFromGrid(...
+                grid.Xq,grid.Yq,grid.Zq,T,P1);
+%             val = NitrousFluidProps.NistNitrous.interpScattered2D(...
+%                 data(:,1),data(:,2),data(:,3),1,200,T,P1);
             if isnan(val)
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
@@ -143,8 +172,15 @@ classdef NistNitrous
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'liquidViscosity.txt']); 
-            val = NitrousFluidProps.NistNitrous.interpScattered2D(...
-                data(:,1),data(:,2),data(:,3),1,200,T,P1);
+            persistent grid;
+            if isempty(grid)
+                [grid.Xq,grid.Yq,grid.Zq] = NitrousFluidProps.NistNitrous.genGridDataFromScattered(...
+                    data(:,1),data(:,2),data(:,3),1,200);
+            end
+            val = NitrousFluidProps.NistNitrous.interpScattered2DFromGrid(...
+                grid.Xq,grid.Yq,grid.Zq,T,P1);
+%             val = NitrousFluidProps.NistNitrous.interpScattered2D(...
+%                 data(:,1),data(:,2),data(:,3),1,200,T,P1);
             if isnan(val)
                 warning('Interpolating outside of dataset');
                 val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
@@ -157,9 +193,14 @@ classdef NistNitrous
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'gasIsobaricExpansion.txt']); 
-            val = NitrousFluidProps.NistNitrous.interpScattered2D(...
-                data(:,1),data(:,2),data(:,3),1,200,T,P1);
-%             val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
+            persistent grid;
+            if isempty(grid)
+                % note the steps 6 & 50. they shouldn't matter but they do.
+                [grid.Xq,grid.Yq,grid.Zq] = NitrousFluidProps.NistNitrous.genGridDataFromScattered(...
+                    data(:,1),data(:,2),data(:,3),6,50);
+            end
+            val = NitrousFluidProps.NistNitrous.interpScattered2DFromGrid(...
+                grid.Xq,grid.Yq,grid.Zq,T,P1);
 
             if isnan(val)
                 fprintf("val: %i, P: %i kPa\n", val, P/1e3)
@@ -174,9 +215,13 @@ classdef NistNitrous
             P1 = P/1000; %Need gas in kPa using tabulated data
             data = NitrousFluidProps.NistNitrous...
                 .getDataFromFile(['+NitrousFluidProps',filesep,'rawData',filesep,'liquidIsobaricExpansion.txt']);
-            val = NitrousFluidProps.NistNitrous.interpScattered2D(...
-                data(:,1),data(:,2),data(:,3),1,200,T,P1);
-%             val = NitrousFluidProps.fallbackInterp2D(data,T,P1);
+            persistent grid;
+            if isempty(grid)
+                [grid.Xq,grid.Yq,grid.Zq] = NitrousFluidProps.NistNitrous.genGridDataFromScattered(...
+                    data(:,1),data(:,2),data(:,3),6,50);
+            end
+            val = NitrousFluidProps.NistNitrous.interpScattered2DFromGrid(...
+                grid.Xq,grid.Yq,grid.Zq,T,P1);
 
             if isnan(val)
                 fprintf("val: %i, P: %i kPa\n", val, P/1e3)

@@ -47,11 +47,11 @@ betaVapFun = str2func("NitrousFluidProps.NistNitrous.getGasIsobaricExpansion");
 for j = 1 : n_sub
     i = numRowsLiquidPhase;
     %Only define for above triple point
-    [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j), beta_liq(i,j)] ...
+    [cp_liq(i,j), cv_liq(i,j), pvap_liq(i,j),~, beta_liq(i,j)] ...
         = getSatProps(p(j), 0, substance, coolpropFun, betaLiqFun, betaVapFun);
         
     i = 1;
-    [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j), beta_vap(i,j)] ...
+    [cp_vap(i,j), cv_vap(i,j), pvap_vap(i,j),~, beta_vap(i,j)] ...
         = getSatProps(p(j), 1, substance, coolpropFun, betaLiqFun, betaVapFun);
 end
 
@@ -176,4 +176,6 @@ function [beta_liq, beta_vap] = getBeta(p_Pa, u_Jkg, T, substance,...
             error("x != 0, 1. T: %g K, P: %g bar, phase: %s\n",...
                 T, p_Pa/1e5, phase_map(phase))
     end
+    assert(beta_liq < 1)
+    assert(beta_vap > 0 && beta_vap < 1)
 end
