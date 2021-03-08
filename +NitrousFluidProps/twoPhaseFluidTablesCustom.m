@@ -855,7 +855,9 @@ try
     end
     Cp = coolpropFun('Cpmass', 'P', p_Pa, 'Q', q, substance);
     Pr = (Cp * mu) / k; %Using Prandtl number = (Cp * dynamic viscosity) / thermal conductivity = (Cp*mu)/k
-    
+    if(Pr < 1e-9) %Catch error at very edge of domain for vapor
+       Pr = 1e-9; 
+    end
 catch errCoolProp
     disp(getReport(errCoolProp,'extended'));
     ME = MException(message('physmod:simscape:utils:twoPhaseFluidTables:FailedFluidProperties', 'CoolProp', errInfo));
@@ -914,7 +916,9 @@ try
     end
     Cp = coolpropFun('Cpmass', 'P', p_Pa, 'U', u_Jkg, substance);
     Pr = (Cp * mu) / k; %Using Prandtl number = (Cp * dynamic viscosity) / thermal conductivity = (Cp*mu)/k
-    
+    if(Pr < 1e-9) %Catch error at very edge of domain for vapor
+       Pr = 1e-9; 
+    end
 catch errCoolProp
     disp(getReport(errCoolProp,'extended'));
     ME = MException(message('physmod:simscape:utils:twoPhaseFluidTables:FailedFluidProperties', 'CoolProp', errInfo));
