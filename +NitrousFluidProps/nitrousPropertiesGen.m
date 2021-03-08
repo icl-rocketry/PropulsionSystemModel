@@ -1,3 +1,10 @@
+%After generating this script check the values for vapor thermal
+%conductivity and prandtl number at the edge of the grid for negative
+%values (Usually like 1 or 2 data points) and replace manually them if found 
+%or else MATLAB will refuse to work
+%with the generated fluid properties. (The limitiation of using a regular
+%grid...)
+
 uMin = -3.45; %kJ/kg
 uMax = 450; %kJ/kg
 %BE CAREFUL generating below triple point
