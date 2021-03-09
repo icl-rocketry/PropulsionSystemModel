@@ -1,1 +1,0 @@
-receiver_accumulator.sscp patched at 09-Mar-2021 15:30:33 for MATLAB version 9.9.0.1495850 (R2020b) Update 1
