@@ -66,5 +66,5 @@ Sim.combustionChamber.initialFuelWebThickness = grainOuterDiam-Sim.combustionCha
 %%
 %Nozzle properties
 Sim.nozzle.throatArea = 2.4575e-4; %m^2 (4.07e-5 for Pablo)
-Sim.nozzle.expansionRatio = 3.9; %m^2 (2.6 for Pablo)
+Sim.nozzle.expansionRatio = 5.2592; % (2.6 for Pablo) <-- design point gamma = 1.484 at P = 30bar and OF = 8
 Sim.nozzle.thrustEfficiencyFactor = 0.9; %lambda
