@@ -34,7 +34,7 @@ Sim.injector.postInjectorCrossSection = 0.25*pi*(11e-2)^2;%m^2; Area used after 
 %Combustion chamber properties
 Sim.combustionChamber.OFRatioInitial = 6.5;
 Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
-Sim.combustionChamber.rhoFuel = 953; %kg/m^3 (density)
+Sim.combustionChamber.rhoFuel = 993.825; %kg/m^3 (density)
 Sim.combustionChamber.combustionEfficiency = 0.95;
 Sim.combustionChamber.PChamberInit = 27e5;
 Sim.combustionChamber.portLength = 130e-3; %m. "Lp" in SPAD
