@@ -1,3 +1,5 @@
+receiverAccumulatorPatchedLog2.txt
+
 # Windows default autosave extension
 *.asv
 
@@ -22,6 +24,7 @@ sccprj/
 # Matlab code generation folders
 codegen/
 derived/
+
 
 # Simulink autosave extension
 *.autosave
