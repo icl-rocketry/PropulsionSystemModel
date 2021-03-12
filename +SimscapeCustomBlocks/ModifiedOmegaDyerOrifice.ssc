@@ -1,10 +1,10 @@
 component ModifiedOmegaDyerOrifice
 % Hybrid modified omega and NHNE (Dyer) Orifice for cavitating and/or super charged liquid or two phase flows
-% Follows UofT model https://drive.google.com/file/d/1XsYkUDSUqLYH4L-ZPt5dw-DkyA-9yGi8/view?usp=sharing
-% see also https://drive.google.com/file/d/1ms7GMUJbnh2647wBZRNjRr8Nijoc1Z7H/view?usp=sharing
-% Uses modified omega model to calculate critical pressure drop and mass flow
-% Uses dyer NHNE model to calculate mass flow before critical point
-% Blends between models around the critical point
+% Follows UofT model https://drive.google.com/file/d/1XsYkUDSUqLYH4L-ZPt5dw-DkyA-9yGi8/view?usp=sharing.
+% see also https://drive.google.com/file/d/1ms7GMUJbnh2647wBZRNjRr8Nijoc1Z7H/view?usp=sharing.
+% Uses modified omega model to calculate critical pressure drop and mass flow.
+% Uses dyer NHNE model to calculate mass flow before critical point.
+% Blends between models around the critical point.
 
 nodes
     A = foundation.two_phase_fluid.two_phase_fluid;
