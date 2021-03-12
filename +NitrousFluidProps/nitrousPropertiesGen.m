@@ -6,13 +6,13 @@
 %grid...)
 
 uMin = -3.45; %kJ/kg
-uMax = 450; %kJ/kg
+uMax = 443;%450; %kJ/kg
 %BE CAREFUL generating below triple point
 pMin = 0.09; %0.1*0.09; %MPa
 pMax = 10; %Mpa
-numRowsLiquidPhase = 60;
-numRowsVapourPhase = 60;
-numPressureVals = 80;
+numRowsLiquidPhase = 190;
+numRowsVapourPhase = 190;
+numPressureVals = 200;
 
 nitrousFluidTable = NitrousFluidProps.twoPhaseFluidTablesCustom(...
     [uMin,uMax],[pMin,pMax],...

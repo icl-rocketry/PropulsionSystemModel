@@ -163,6 +163,9 @@ function [beta_liq, beta_vap] = getBeta(p_Pa, u_Jkg, T, substance,...
         case 3 % supercritical_liquid
             beta_liq = betaLiqFun(p_Pa,T);
             beta_vap = beta_liq;
+            if(~(beta_vap > 0 && beta_vap < 1))
+                beta_vap = betaVapFun(p_Pa,T);
+            end
         case 5 % gas
             beta_vap = betaVapFun(p_Pa,T);
             beta_liq = beta_vap;
@@ -177,5 +180,8 @@ function [beta_liq, beta_vap] = getBeta(p_Pa, u_Jkg, T, substance,...
                 T, p_Pa/1e5, phase_map(phase))
     end
     assert(beta_liq < 1)
+    if(~(beta_vap > 0 && beta_vap < 1))
+       disp("Non physical beta_vap for P:"+p_Pa+", T:"+T); 
+    end
     assert(beta_vap > 0 && beta_vap < 1)
 end
