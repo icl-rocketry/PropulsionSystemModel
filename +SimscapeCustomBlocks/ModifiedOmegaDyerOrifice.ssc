@@ -43,12 +43,12 @@ variables (Access=protected)
 end
 
 variables (Access=protected, ExternalAccess=none)
-    %Initial guesses for solver
-    u_out_isentropic = {1500, 'kJ/kg' }; % Specific internal energy at port B if isentropic
-    u_A = {1500, 'kJ/kg' };
-    u_B = {1500, 'kJ/kg' };
-    lowSuperchargeCriticalPressureRatioSat = 0.8; %PCrit/PUpstream for omega sat init guess
-    lowSuperchargeCriticalPressureRatioSubcooled = 0.8; %PCrit/PUpstream for omega subcooled init guess
+    %Initial guesses for solver, priority is if we care about them as initial conditions
+    u_out_isentropic = {value={1500, 'kJ/kg' }, priority=priority.none}; % Specific internal energy at port B if isentropic
+    u_A = {value={1500, 'kJ/kg' },priority=priority.none};
+    u_B = {value={1400, 'kJ/kg' },priority=priority.none};
+    lowSuperchargeCriticalPressureRatioSat = {value=0.8, priority = priority.none}; %PCrit/PUpstream for omega sat init guess
+    lowSuperchargeCriticalPressureRatioSubcooled = {value=0.8, priority = priority.none}; %PCrit/PUpstream for omega subcooled init guess
 end
 
 branches
@@ -71,8 +71,8 @@ equations
             A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
         
         % Specific volume
-        v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=linear, extrapolation=linear);
-        v_B = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_B, p_B, interpolation=linear, extrapolation=linear);
+        v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=smooth, extrapolation=linear);
+        v_B = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_B, p_B, interpolation=smooth, extrapolation=linear);
         
         %Velocity at A,B
         velocity_A = (mdot_A * v_A) / area;
@@ -112,18 +112,18 @@ equations
         
         v_liq_in = ...
             if ge(X_in,0.001),...
-                tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, 0, p_in, interpolation=linear, extrapolation=linear)
+                tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, 0, p_in, interpolation=smooth, extrapolation=linear)
             else ...
                 v_in
             end;
         v_vap_in = ...
             if lt(X_in,0.9999),...
-                tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, 1, p_in, interpolation=linear, extrapolation=linear)
+                tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, 1, p_in, interpolation=smooth, extrapolation=linear)
             else ...
                 v_in
             end;
-        u_sat_liq_in = tablelookup(A.p_TLU, A.u_sat_liq_TLU, p_in, interpolation=linear, extrapolation=linear);
-        u_sat_vap_in = tablelookup(A.p_TLU, A.u_sat_vap_TLU, p_in, interpolation=linear, extrapolation=linear);
+        u_sat_liq_in = tablelookup(A.p_TLU, A.u_sat_liq_TLU, p_in, interpolation=smooth, extrapolation=linear);
+        u_sat_vap_in = tablelookup(A.p_TLU, A.u_sat_vap_TLU, p_in, interpolation=smooth, extrapolation=linear);
         u_liq_in = ...
             if ge(X_in,0.001),...
                 u_sat_liq_in
@@ -141,9 +141,9 @@ equations
         
         Cp_liq_in = ...
             if ge(X_in,0.001),...
-                tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, 0, p_in, interpolation=linear, extrapolation=linear)
+                tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, 0, p_in, interpolation=smooth, extrapolation=linear)
             else ...
-                tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, unorm_in, p_in, interpolation=linear, extrapolation=linear)
+                tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, unorm_in, p_in, interpolation=smooth, extrapolation=linear)
             end;
         
         %Temp at inlet
@@ -165,9 +165,9 @@ equations
         reducedInletPressure = eta_st*p_in;
         %For when Pvap < reductedInletP (Eqn 14 in Borccardi et all)
         PCritOmegaHighSupercharge = P_Vap_in;
-        mdotOmegaHighSuperchargeUncorrected = {max(0,value(...
-            orifice_area * (p_in*v_in^-1)^0.5 * (2*v_in^-1*(p_in-max(p_out,PCritOmegaHighSupercharge)))^0.5...
-            ,'kg*bar/m')),'kg/s'};
+        mdotOmegaHighSuperchargeUncorrected = {value(...
+            orifice_area * (p_in*v_in^-1)^0.5 * max({1e-8,'kg*bar/m^3'},2*v_in^-1*(p_in-max(p_out,PCritOmegaHighSupercharge)))^0.5...
+            ,'kg*bar/m'),'kg/s'};
         %For when Pvap > reducedInletP (Eqn 12 in UofT)
         %saturated
         PCritOmegaLowSuperchargeSat = abs(lowSuperchargeCriticalPressureRatioSat)*p_in;
@@ -187,7 +187,7 @@ equations
         eta = max(p_out,PCritOmegaLowSuperchargeModified) / p_in; %Pressure ratio
         %Eqn 12 in UofT
         mdotOmegaLowSuperchargeUncorrected = orifice_area * (p_in/v_liq_in)^0.5 * (...
-            ( ...
+            max(1e-8, ...
               2*(1-eta_sat) + 2*(...
                 omega*eta_sat*log(eta_sat/eta) - (omega-1)*(eta_sat-eta)...
               )...
@@ -210,7 +210,7 @@ equations
         %Kinematic viscosity at inlet
         nu_in = tablelookup(A.unorm_TLU, A.p_TLU, A.nu_TLU, unorm_in, p_in, interpolation=linear, extrapolation=linear);
         %Diameter reynolds number
-        Re_D = velocity_in * single_hole_diam / nu_in;
+        Re_D = max(velocity_in * single_hole_diam / nu_in,500);
         
         %Skin coefficient for smooth walls from Blausius solution
         Cf = 0.0791*Re_D^-0.25;
@@ -231,13 +231,13 @@ equations
         
         %Enthalpy inlet and outlet
         h1 = u_in + p_in*v_in;
-        h2_isentropic = u_out_isentropic + (p_in-dP)*v_out_isentropic;
+        h2_isentropic = min(h1,u_out_isentropic + (p_in-dP)*v_out_isentropic);
         
         %Homogenous equilibrium model mass flow
         mdot_HEM = orifice_area * v_out_isentropic^-1 * (2*(0.5.*velocity_in.^2 + h1-h2_isentropic))^0.5;
         
         %Dyer parameter k
-        k = ( (dP) / abs(P_Vap_in - (p_in-dP)) )^0.5;
+        k = ( (dP) / max(abs(P_Vap_in - (p_in-dP)),{1e-8,'bar'}) )^0.5;
         
         %NHNE Mass flow rate, corrected by Solomon
         mdotDyer = CdDyer * ((1-(1/(1+k)))*mdot_incompressible + (1/(1+k))*mdot_HEM);
@@ -245,11 +245,15 @@ equations
         mdotDyerLimited = min(mdotDyer,mdotModifiedOmega);
         %Use modified omega above choking pressure
         %Blend between dyer and omega just before choking pressure
-        mdotCombined = ...
-            simscape.function.blend(mdotModifiedOmega, mdotDyerLimited, ...
-            PCritModifiedOmega, min(PCritModifiedOmega*1.2,PCritModifiedOmega+{7,'bar'}), p_out);
+        mdotCombined = simscape.function.blend(0.7*mdot_incompressible,simscape.function.blend(mdotModifiedOmega, mdotDyerLimited, ...
+                PCritModifiedOmega, min(PCritModifiedOmega*1.2,PCritModifiedOmega+{7,'bar'}), p_out),...
+                {1e-8,'bar'},{1e-4,'bar'},dP);
         
-        mdot = direction * mdotCombined;
+        mdot = if isnan(mdotCombined) || isinf(mdotCombined),... %Can happen at time 0 for bad initial conditions
+                direction * mdot_incompressible %Is more robust numerically
+            else ...
+                direction * mdotCombined
+            end;
     in  
         %For omega model: (From "Two-phase flow through pressure safety valves. Experimental investigation and model prediction" by Boccardi et all)
         %eqn 9

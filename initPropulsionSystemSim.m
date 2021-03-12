@@ -20,14 +20,21 @@ Sim.runTank.PInit = 60e5; %Pascal. Very temperature dependent. Eg. 0C->31bar, 20
 Sim.pipe.diameter = 7e-3; %m
 Sim.pipe.crossSection = 0.25*pi*(Sim.pipe.diameter)^2; %m^2
 Sim.pipe.startPressure = Sim.runTank.PInit; %Pa (40e5 or so for Pablo)
-Sim.pipe.mdotOxInitial = 0.25; %kg/sec (0.05 or so for Pablo)
+Sim.pipe.mdotOxInitial = 0.3; %kg/sec (0.05 or so for Pablo)
 
 Sim.preInjectorPipe.diameter = 20e-3; %m
 Sim.preInjectorPipe.crossSection = 0.25*pi*Sim.preInjectorPipe.diameter^2; %m^2
 
 %%
 %Injector properties
-Sim.injector.singleHoleA = 0.25*pi*(1.47e-3)^2; %m^2
+Sim.injector.singleHoleDiamPort1 = 1.5e-3; %m
+Sim.injector.singleHoleDiamPort2 = 1.5e-3; %m
+Sim.injector.injectorDepth = 5e-3; %m
+Sim.injector.numHolesPort1 = 7;
+Sim.injector.numHolesPort2 = 7;
+Sim.injector.singleHoleAPort1 = 0.25*pi*(Sim.injector.singleHoleDiamPort1)^2; %m^2
+Sim.injector.singleHoleAPort2 = 0.25*pi*(Sim.injector.singleHoleDiamPort2)^2; %m^2
+Sim.injector.singleHoleA = Sim.injector.singleHoleAPort1; %Used for local restriction injector model (probably not the one selected)
 Sim.injector.postInjectorCrossSection = 0.25*pi*(11e-2)^2;%m^2; Area used after injector for modelled reservoir (Shouldn't matter)
 
 %%
