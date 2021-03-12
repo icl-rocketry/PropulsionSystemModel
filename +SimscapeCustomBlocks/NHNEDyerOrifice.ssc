@@ -11,6 +11,12 @@ nodes
     Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
 end
 
+outputs
+    kOut; % K:right
+    MInc = {0, 'kg/s'}; % MInc:right
+    MHEM = {0, 'kg/s'}; % MHEM:right
+end
+
 parameters
     area             = {0.01, 'm^2'}; % Cross-sectional area at ports A and B
     orifice_area = {5*0.25*pi*(1.5e-3)^2, 'm^2'}; % A_c Total area of orifices
@@ -67,8 +73,12 @@ equations
         v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=smooth, extrapolation=linear);
         v_B = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_B, p_B, interpolation=smooth, extrapolation=linear);
         
+        %Velocity at A,B
+        velocity_A = (mdot_A * v_A) / area;
+        velocity_B = (mdot_B * v_B) / area;
+        
         % Inlet and outlet pressure, unorm and specific volumes
-        [p_in, unorm_in, v_in, unorm_out, v_out, dP, direction, u_in, u_out] = ...
+        [p_in, unorm_in, v_in, unorm_out, v_out, dP, direction, u_in, u_out, velocity_in] = ...
             if ge(p_A, p_B), ...
                 p_A; ...
                 unorm_A; ...
@@ -78,7 +88,8 @@ equations
                 p_A - p_B; ...
                 1; ...
                 u_A; ...
-                u_B
+                u_B; ...
+                velocity_A
             else ...
                 p_B; ...
                 unorm_B; ...
@@ -88,7 +99,8 @@ equations
                 p_B - p_A; ...
                 -1; ...
                 u_B; ...
-                u_A
+                u_A; ...
+                velocity_B
             end;
             
         %Vapor pressure for temp as at inlet
@@ -110,7 +122,7 @@ equations
         h2_isentropic = u_out_isentropic + (p_in-dP)*v_out_isentropic;
         
         %Homogenous equilibrium model mass flow
-        mdot_HEM = Cd * orifice_area * v_out_isentropic^-1 * (2*(h1-h2_isentropic))^0.5;
+        mdot_HEM = Cd * orifice_area * v_out_isentropic^-1 * (2*(0.5.*velocity_in.^2 + h1-h2_isentropic))^0.5;
         
         %Dyer parameter k
         k = ( (dP) / abs(P_Vap_in - (p_in-dP)) )^0.5;
@@ -120,10 +132,6 @@ equations
         
         %Temp at inlet
         T_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_A, p_in, interpolation=smooth, extrapolation=linear);
-        
-        %Velocity at A,B
-        velocity_A = (mdot * v_A) / area;
-        velocity_B = (mdot * v_B) / area;
     in  
         % Mass flow rate
         mdot_A == mdot;
@@ -160,6 +168,10 @@ equations
         convection_B.Phi  == Phi_B;
 
         convection_A.ht_I == convection_B.ht_I;
+        
+        kOut == k;
+        MInc == mdot_incompressible;
+        MHEM == mdot_HEM;
     end
 end
 
