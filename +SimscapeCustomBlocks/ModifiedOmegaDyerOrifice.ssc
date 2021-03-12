@@ -1,0 +1,314 @@
+component ModifiedOmegaDyerOrifice
+% Hybrid modified omega and NHNE (Dyer) Orifice for cavitating and/or super charged liquid or two phase flows
+% Follows UofT model https://drive.google.com/file/d/1XsYkUDSUqLYH4L-ZPt5dw-DkyA-9yGi8/view?usp=sharing
+% see also https://drive.google.com/file/d/1ms7GMUJbnh2647wBZRNjRr8Nijoc1Z7H/view?usp=sharing
+% Uses modified omega model to calculate critical pressure drop and mass flow
+% Uses dyer NHNE model to calculate mass flow before critical point
+% Blends between models around the critical point
+
+nodes
+    A = foundation.two_phase_fluid.two_phase_fluid;
+    B = foundation.two_phase_fluid.two_phase_fluid;
+    Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
+end
+
+parameters
+    area             = {0.01, 'm^2'}; % Cross-sectional area at ports A and B
+    orifice_area = {5*0.25*pi*(1.5e-3)^2, 'm^2'}; % A_c Total area of orifices
+    injector_depth = {0.005,'m'}; %L Injector depth
+    single_hole_diam = {0.0015,'m'}; %D hole diameter
+    K_excess = 2.28; %K Excess pressure drop constant (Langhaar says 2.28 for sharp edge inlets) - used to calculate Cd for dyer
+    CdOmegaLow = 0.85; %Cd_Omega_Low Discharge coefficient used for low supercharge omega model. UofT recommends 0.85
+    CdOmegaHigh = 0.73; %Cd_Omega_High Discharge coefficient used for high supercharge omega model. 0.73 agrees with empirical relations for critical CO2 through sharp straight orifices.
+end
+
+annotations
+    Icon = 'icon/ModifiedOmegaDyer.png';
+    A : Side = left;
+    B : Side = right;
+    Props : Side = top;
+end
+
+% Parameter checks
+equations
+    assert(orifice_area >= 0)
+    assert(orifice_area <= area)
+end
+
+variables (Access=protected)
+    mdot_A = {0, 'kg/s'}; % Mass flow rate into port A
+    mdot_B = {0, 'kg/s'}; % Mass flow rate into port B
+    Phi_A  = {0, 'kW'  }; % Energy flow rate into port A
+    Phi_B  = {0, 'kW'  }; % Energy flow rate into port B
+end
+
+variables (Access=protected, ExternalAccess=none)
+    %Initial guesses for solver
+    u_out_isentropic = {1500, 'kJ/kg' }; % Specific internal energy at port B if isentropic
+    u_A = {1500, 'kJ/kg' };
+    u_B = {1500, 'kJ/kg' };
+    lowSuperchargeCriticalPressureRatioSat = 0.8; %PCrit/PUpstream for omega sat init guess
+    lowSuperchargeCriticalPressureRatioSubcooled = 0.8; %PCrit/PUpstream for omega subcooled init guess
+end
+
+branches
+    mdot_A : A.mdot -> *;
+    mdot_B : B.mdot -> *;
+    Phi_A  : A.Phi  -> *;
+    Phi_B  : B.Phi  -> *;
+end
+
+equations
+    let
+        % Port pressure
+        p_A = A.p;
+        p_B = B.p;
+
+        % Normalized internal energy
+        unorm_A = foundation.two_phase_fluid.normalized_internal_energy(u_A, p_A, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        unorm_B = foundation.two_phase_fluid.normalized_internal_energy(u_B, p_B, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        
+        % Specific volume
+        v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=linear, extrapolation=linear);
+        v_B = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_B, p_B, interpolation=linear, extrapolation=linear);
+        
+        %Velocity at A,B
+        velocity_A = (mdot_A * v_A) / area;
+        velocity_B = (mdot_A * v_B) / area;
+        
+        % Inlet and outlet pressure, unorm and specific volumes
+        [p_in, unorm_in, v_in, unorm_out, v_out, dP, direction, u_in, u_out, velocity_in] = ...
+            if ge(p_A, p_B), ...
+                p_A; ...
+                unorm_A; ...
+                v_A; ...
+                unorm_B; ...
+                v_B; ...
+                p_A - p_B; ...
+                1; ...
+                u_A; ...
+                u_B; ...
+                abs(velocity_A)
+            else ...
+                p_B; ...
+                unorm_B; ...
+                v_B; ...
+                unorm_A; ...
+                v_A; ...
+                p_B - p_A; ...
+                -1; ...
+                u_B; ...
+                u_A; ...
+                abs(velocity_B)
+            end;
+            
+        %Vapor pressure for temp as at inlet
+        P_Vap_in = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.PVap_TLU, unorm_in, p_in, interpolation=linear, extrapolation=linear);
+            
+        %Inlet vapor quality (by mass)
+        X_in = simscape.function.limit(unorm_in, 0, 1, false);
+        
+        v_liq_in = ...
+            if ge(X_in,0.001),...
+                tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, 0, p_in, interpolation=linear, extrapolation=linear)
+            else ...
+                v_in
+            end;
+        v_vap_in = ...
+            if lt(X_in,0.9999),...
+                tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, 1, p_in, interpolation=linear, extrapolation=linear)
+            else ...
+                v_in
+            end;
+        u_sat_liq_in = tablelookup(A.p_TLU, A.u_sat_liq_TLU, p_in, interpolation=linear, extrapolation=linear);
+        u_sat_vap_in = tablelookup(A.p_TLU, A.u_sat_vap_TLU, p_in, interpolation=linear, extrapolation=linear);
+        u_liq_in = ...
+            if ge(X_in,0.001),...
+                u_sat_liq_in
+            else ...
+                u_in
+            end;
+        u_vap_in = ...
+            if lt(X_in,0.9999),...
+                u_sat_vap_in
+            else ...
+                u_in
+            end;            
+        h_liq_in = u_liq_in + p_in*v_liq_in;
+        h_vap_in = u_vap_in + p_in*v_vap_in;
+        
+        Cp_liq_in = ...
+            if ge(X_in,0.001),...
+                tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, 0, p_in, interpolation=linear, extrapolation=linear)
+            else ...
+                tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, unorm_in, p_in, interpolation=linear, extrapolation=linear)
+            end;
+        
+        %Temp at inlet
+        T_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, unorm_in, p_in, interpolation=linear, extrapolation=linear);
+        T_sat_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, p_in, interpolation=linear, extrapolation=linear);
+        
+        %Omega parameter for modified omega model
+        omega = (X_in * (v_liq_in-v_vap_in))/v_in + ((Cp_liq_in * T_in * p_in)/v_in)*( (v_liq_in-v_vap_in)/(h_vap_in-h_liq_in) )^2;
+        omegaSat = ...
+            if ge(X_in,0.001) || lt(X_in,0.9999),...
+                omega
+            else ...
+                ((Cp_liq_in * T_sat_in * p_in)/v_liq_in)*( (v_liq_in-v_vap_in)/(h_vap_in-h_liq_in) )^2;
+            end;
+        p_out = p_in-dP;
+            
+        %Parameter to determine reduced inlet to segregate between high and low supercharge states
+        eta_st = 2*omegaSat / (1+2*omegaSat); %(Eqn 10 in UofT)
+        reducedInletPressure = eta_st*p_in;
+        %For when Pvap < reductedInletP (Eqn 14 in Borccardi et all)
+        PCritOmegaHighSupercharge = P_Vap_in;
+        mdotOmegaHighSuperchargeUncorrected = {max(0,value(...
+            orifice_area * (p_in*v_in^-1)^0.5 * (2*v_in^-1*(p_in-max(p_out,PCritOmegaHighSupercharge)))^0.5...
+            ,'kg*bar/m')),'kg/s'};
+        %For when Pvap > reducedInletP (Eqn 12 in UofT)
+        %saturated
+        PCritOmegaLowSuperchargeSat = abs(lowSuperchargeCriticalPressureRatioSat)*p_in;
+        PCritOmegaLowSuperchargeSub = abs(lowSuperchargeCriticalPressureRatioSubcooled)*p_in;
+        %Eqn 14 in UofT
+        PCritOmegaLowSuperchargeModified = ...
+            (P_Vap_in/p_in)*PCritOmegaLowSuperchargeSat + (1-P_Vap_in/p_in)*PCritOmegaLowSuperchargeSub;
+        %mdotOmegaSatCritUncorrected = orifice_area * ((p_in*v_liq_in^-1)^0.5 * lowSuperchargeCriticalPressureRatioSat / (omega)^0.5);
+        %Equation 7 from Boccardi et all
+        mdotOmegaSatUncorrected = orifice_area * (p_in/v_in)^0.5 .* ...
+            ( (...
+                -2*( omega*log(max(p_out,PCritOmegaLowSuperchargeModified)/p_in) + (omega-1)*(1-(max(p_out,PCritOmegaLowSuperchargeModified)/p_in)) )...
+            )^0.5 ...
+            / (omega*(p_in/max(p_out,PCritOmegaLowSuperchargeModified)-1) +1) );
+        %subcooled
+        eta_sat = P_Vap_in / p_in; %saturation pressure ratio
+        eta = max(p_out,PCritOmegaLowSuperchargeModified) / p_in; %Pressure ratio
+        %Eqn 12 in UofT
+        mdotOmegaLowSuperchargeUncorrected = orifice_area * (p_in/v_liq_in)^0.5 * (...
+            ( ...
+              2*(1-eta_sat) + 2*(...
+                omega*eta_sat*log(eta_sat/eta) - (omega-1)*(eta_sat-eta)...
+              )...
+            )^0.5 ...
+            / (omega* (eta_sat/eta -1)+1));
+        %Eqn 13 in UofT
+        mdotOmegaLowSuperchargeModifiedUncorrected = ...
+            (P_Vap_in/p_in)*mdotOmegaSatUncorrected + (1-P_Vap_in/p_in)*mdotOmegaLowSuperchargeUncorrected;
+        
+        mdotOmegaHighSuperCharge = CdOmegaHigh*mdotOmegaHighSuperchargeUncorrected;
+        mdotOmegaLowSuperChargeModified = CdOmegaLow*mdotOmegaLowSuperchargeModifiedUncorrected;
+        
+        mdotModifiedOmega = ...
+            simscape.function.blend(mdotOmegaLowSuperChargeModified, mdotOmegaHighSuperCharge,...
+            P_Vap_in, P_Vap_in*1.015, reducedInletPressure);
+        PCritModifiedOmega= ...
+            simscape.function.blend(PCritOmegaLowSuperchargeModified, PCritOmegaHighSupercharge,...
+            P_Vap_in, P_Vap_in*1.015, reducedInletPressure);
+        
+        %Kinematic viscosity at inlet
+        nu_in = tablelookup(A.unorm_TLU, A.p_TLU, A.nu_TLU, unorm_in, p_in, interpolation=linear, extrapolation=linear);
+        %Diameter reynolds number
+        Re_D = velocity_in * single_hole_diam / nu_in;
+        
+        %Skin coefficient for smooth walls from Blausius solution
+        Cf = 0.0791*Re_D^-0.25;
+        %From UofT paper, semi empirical discharge coeff for non-choked dyer model
+        CdDyer = 1/( 4*Cf*(injector_depth / single_hole_diam) +  K_excess)^0.5;
+        
+        %Isentropic to use for HEM calculation for dyer
+        unorm_out_isentropic = foundation.two_phase_fluid.normalized_internal_energy(u_out_isentropic, p_in-dP, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        v_out_isentropic = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_out_isentropic, p_in-dP, interpolation=linear, extrapolation=linear);
+            
+        %Entropy
+        s_in = tablelookup(A.unorm_TLU, A.p_TLU, A.s_TLU, unorm_in, p_in, interpolation=linear, extrapolation=linear);
+        s_out_isentropic = tablelookup(A.unorm_TLU, A.p_TLU, A.s_TLU, unorm_out_isentropic, p_in-dP, interpolation=linear, extrapolation=linear);
+        
+        %Incompressible mass flow
+        mdot_incompressible = orifice_area * (2*dP*v_in^-1)^0.5;
+        
+        %Enthalpy inlet and outlet
+        h1 = u_in + p_in*v_in;
+        h2_isentropic = u_out_isentropic + (p_in-dP)*v_out_isentropic;
+        
+        %Homogenous equilibrium model mass flow
+        mdot_HEM = orifice_area * v_out_isentropic^-1 * (2*(0.5.*velocity_in.^2 + h1-h2_isentropic))^0.5;
+        
+        %Dyer parameter k
+        k = ( (dP) / abs(P_Vap_in - (p_in-dP)) )^0.5;
+        
+        %NHNE Mass flow rate, corrected by Solomon
+        mdotDyer = CdDyer * ((1-(1/(1+k)))*mdot_incompressible + (1/(1+k))*mdot_HEM);
+        
+        %Use modified omega above choking pressure
+        %Blend between dyer and omega just before choking pressure
+        mdotCombined = ...
+            simscape.function.blend(mdotModifiedOmega, mdotDyer, ...
+            PCritModifiedOmega, PCritModifiedOmega*1.2, p_out);
+        
+        mdot = direction * mdotCombined;
+    in  
+        %For omega model: (From "Two-phase flow through pressure safety valves. Experimental investigation and model prediction" by Boccardi et all)
+        %eqn 9
+        0 == lowSuperchargeCriticalPressureRatioSat^2 + ...
+            (omega^2-2*omega)*(1-abs(lowSuperchargeCriticalPressureRatioSat))^2 + ...
+            2*omega^2*log(abs(lowSuperchargeCriticalPressureRatioSat)) + ...
+            2*omega^2*(1-abs(lowSuperchargeCriticalPressureRatioSat));
+        %For omega model: (From "Two-phase flow through pressure safety valves. Experimental investigation and model prediction" by Boccardi et all)
+        %eqn 12
+        0 == ((omega+(1/omega)-2)/(2*eta_sat))*lowSuperchargeCriticalPressureRatioSubcooled^2 ...
+            - 2*(omega-1)*abs(lowSuperchargeCriticalPressureRatioSubcooled) +...
+            omega*eta_sat*log(abs(lowSuperchargeCriticalPressureRatioSubcooled/eta_sat)) +...
+            1.5*omega*eta_sat -1;
+        
+        
+        u_A == A.u;
+        u_B == B.u;
+        
+        % Mass flow rate
+        mdot_A == mdot;
+        
+        % Enforce isentropic for HEM calculation
+        s_in == s_out_isentropic;
+        
+        % Mass balance
+        mdot_A + mdot_B == 0;
+
+        % Energy balance
+        Phi_A + Phi_B == 0;
+
+        % Run-time variable checks
+        assert(v_in>0, 'Specific volume at input must be larger than 0');
+        assert(A.p >= A.p_min, message('physmod:simscape:library:two_phase_fluid:PressureMinValid', 'A'))
+        assert(A.p <= A.p_max, message('physmod:simscape:library:two_phase_fluid:PressureMaxValid', 'A'))
+        assert(A.u >= A.u_min, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMinValid', 'A'))
+        assert(A.u <= A.u_max, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMaxValid', 'A'))
+        assert(B.p >= B.p_min, message('physmod:simscape:library:two_phase_fluid:PressureMinValid', 'B'))
+        assert(B.p <= B.p_max, message('physmod:simscape:library:two_phase_fluid:PressureMaxValid', 'B'))
+        assert(B.u >= B.u_min, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMinValid', 'B'))
+        assert(B.u <= B.u_max, message('physmod:simscape:library:two_phase_fluid:InternalEnergyMaxValid', 'B'))
+
+        % Equate variables for internal components that calculate energy convection at ports A and B
+        convection_A.mdot == mdot_A;
+        convection_A.Phi  == Phi_A;
+        convection_B.mdot == mdot_B;
+        convection_B.Phi  == Phi_B;
+
+        convection_A.ht_I == convection_B.ht_I;
+    end
+end
+
+% Internal components that calculate energy convection at ports A and B
+components (ExternalAccess=none)
+    convection_A = foundation.two_phase_fluid.port_convection(flow_area = area, length_scale = sqrt(4*area/pi));
+    convection_B = foundation.two_phase_fluid.port_convection(flow_area = area, length_scale = sqrt(4*area/pi));
+end
+
+connections
+    connect(A, convection_A.port)
+    connect(B, convection_B.port)
+end
+
+end
