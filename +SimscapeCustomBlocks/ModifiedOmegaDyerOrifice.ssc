@@ -242,11 +242,12 @@ equations
         %NHNE Mass flow rate, corrected by Solomon
         mdotDyer = CdDyer * ((1-(1/(1+k)))*mdot_incompressible + (1/(1+k))*mdot_HEM);
         
+        mdotDyerLimited = min(mdotDyer,mdotModifiedOmega);
         %Use modified omega above choking pressure
         %Blend between dyer and omega just before choking pressure
         mdotCombined = ...
-            simscape.function.blend(mdotModifiedOmega, mdotDyer, ...
-            PCritModifiedOmega, PCritModifiedOmega*1.2, p_out);
+            simscape.function.blend(mdotModifiedOmega, mdotDyerLimited, ...
+            PCritModifiedOmega, min(PCritModifiedOmega*1.2,PCritModifiedOmega+{7,'bar'}), p_out);
         
         mdot = direction * mdotCombined;
     in  
