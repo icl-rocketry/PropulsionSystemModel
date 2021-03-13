@@ -151,7 +151,7 @@ equations
         T_sat_in = tablelookup(A.unorm_TLU, A.p_TLU, A.T_TLU, 0, p_in, interpolation=linear, extrapolation=linear);
         
         %Omega parameter for modified omega model
-        omega = (X_in * (v_liq_in-v_vap_in))/v_in + ((Cp_liq_in * T_in * p_in)/v_in)*( (v_liq_in-v_vap_in)/(h_vap_in-h_liq_in) )^2;
+        omega = (X_in * abs(v_vap_in-v_liq_in))/v_in + ((Cp_liq_in * T_in * p_in)/v_in)*( (v_liq_in-v_vap_in)/(h_vap_in-h_liq_in) )^2;
         omegaSat = ...
             if ge(X_in,0.001) || lt(X_in,0.9999),...
                 omega
@@ -183,7 +183,7 @@ equations
             )^0.5 ...
             / (omega*(p_in/max(p_out,PCritOmegaLowSuperchargeModified)-1) +1) );
         %subcooled
-        eta_sat = P_Vap_in / p_in; %saturation pressure ratio
+        eta_sat = value(P_Vap_in / p_in,'Pa/Pa'); %saturation pressure ratio
         eta = max(p_out,PCritOmegaLowSuperchargeModified) / p_in; %Pressure ratio
         %Eqn 12 in UofT
         mdotOmegaLowSuperchargeUncorrected = orifice_area * (p_in/v_liq_in)^0.5 * (...
@@ -263,11 +263,10 @@ equations
             2*omega^2*(1-abs(lowSuperchargeCriticalPressureRatioSat));
         %For omega model: (From "Two-phase flow through pressure safety valves. Experimental investigation and model prediction" by Boccardi et all)
         %eqn 12
-        0 == ((omega+(1/omega)-2)/(2*eta_sat))*lowSuperchargeCriticalPressureRatioSubcooled^2 ...
-            - 2*(omega-1)*abs(lowSuperchargeCriticalPressureRatioSubcooled) +...
-            omega*eta_sat*log(abs(lowSuperchargeCriticalPressureRatioSubcooled/eta_sat)) +...
-            1.5*omega*eta_sat -1;
-        
+        0 == ((omegaSat+(1/omegaSat)-2)/(2*eta_sat))*lowSuperchargeCriticalPressureRatioSubcooled^2 ...
+            - 2*(omegaSat-1)*abs(lowSuperchargeCriticalPressureRatioSubcooled) +...
+            omegaSat*eta_sat*log(abs(abs(lowSuperchargeCriticalPressureRatioSubcooled)/eta_sat)) +...
+            1.5*omegaSat*eta_sat -1;
         
         u_A == A.u;
         u_B == B.u;
