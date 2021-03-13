@@ -34,8 +34,6 @@ outputs
     T = {0, 'K'}; %Tout:left
     h_tank_liq = {0, "W/m^2/K"}; %hliq:bottom
     h_tank_vap = {0, "W/m^2/K"}; %hvap:bottom
-    Ra_tank_liq = {0, "m^2*kg/s^3/W"}; %Raliq:top
-    Ra_tank_vap = {0, "m^2*kg/s^3/W"}; %Ravap:top
 end
 
 annotations
@@ -51,8 +49,6 @@ parameters
     areaL = {0.01, 'm^2'}; % Cross-sectional area at liquid ports
     areaV = {0.01, 'm^2'}; %Cross-sectional area at vapour ports
     tank_volume = {2, 'm^3'}; %Internal volume of tank
-%     alpha_L = {100, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to liquid
-%     alpha_V = {20, 'W/(m^2*K)'}; %Heat transfer co-efficient wall to vapour
     heat_surface_area = {6, 'm^2'}; %Total internal surface area available for heat transfer
     tank_height = {2, "m"}; %Tank Height
     g = {9.8, "m/s^2"}; %Gravity
@@ -272,8 +268,6 @@ equations
         L == liq_vol_fraction; %Liquid volume fraction
         h_tank_liq == h_liq;
         h_tank_vap == h_vap;
-        Ra_tank_vap == Ra_vap;
-        Ra_tank_liq == Ra_liq;
     end
 end
 
