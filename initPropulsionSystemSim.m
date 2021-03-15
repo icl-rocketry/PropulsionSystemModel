@@ -35,10 +35,11 @@ Sim.injector.numHolesPort2 = 7;
 Sim.injector.singleHoleAPort1 = 0.25*pi*(Sim.injector.singleHoleDiamPort1)^2; %m^2
 Sim.injector.singleHoleAPort2 = 0.25*pi*(Sim.injector.singleHoleDiamPort2)^2; %m^2
 Sim.injector.singleHoleA = Sim.injector.singleHoleAPort1; %Used for local restriction injector model (probably not the one selected)
-Sim.injector.postInjectorCrossSection = 0.25*pi*(11e-2)^2;%m^2; Area used after injector for modelled reservoir (Shouldn't matter)
+Sim.injector.postInjectorCrossSection = 0.25*pi*(76e-2)^2;%m^2; Area used after injector for modelled reservoir
 
 %%
 %Combustion chamber properties
+Sim.combustionChamber.preCombustionChamberLength = 38e-3; %m
 Sim.combustionChamber.OFRatioInitial = 6.5;
 Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
 Sim.combustionChamber.rhoFuel = 993.825; %kg/m^3 (density)

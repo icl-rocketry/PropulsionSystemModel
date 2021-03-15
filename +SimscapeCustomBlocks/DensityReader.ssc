@@ -1,0 +1,37 @@
+component DensityReader
+% Density Reader
+% This block outputs the density of the fluid and also the density of the vapour for the same pressure
+
+nodes
+    A = foundation.two_phase_fluid.two_phase_fluid;
+    Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
+end
+
+outputs
+    rho; %rho:right
+    rhoVap; %rhoVap:right
+end
+
+annotations
+    A : Side = left;
+    Props : Side = top;
+end
+
+equations
+    let
+        % Port pressure
+        p_A = A.p;
+
+        % Normalized internal energy
+        unorm_A = foundation.two_phase_fluid.normalized_internal_energy(A.u, p_A, ...
+            A.u_min, A.u_max, A.p_TLU, A.u_sat_liq_TLU, A.u_sat_vap_TLU);
+        
+        % Specific volume
+        v_A = tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, unorm_A, p_A, interpolation=linear, extrapolation=linear);
+        v_Avap = max(v_A,tablelookup(A.unorm_TLU, A.p_TLU, A.v_TLU, 1, p_A, interpolation=linear, extrapolation=linear));
+    in  
+        rho == v_A.^-1;
+        rhoVap == v_Avap.^-1;
+    end
+end
+end
