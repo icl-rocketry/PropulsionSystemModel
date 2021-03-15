@@ -44,9 +44,7 @@ Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
 Sim.combustionChamber.rhoFuel = 993.825; %kg/m^3 (density)
 Sim.combustionChamber.combustionEfficiency = 0.95;
 Sim.combustionChamber.PChamberInit = 15e5;
-%Articially prevent chamber pressure exceeding this, can fix non-physical
-%spikes at very start of simulation
-Sim.combustionChamber.artificalPChamberMax = 40e5; %Up to 60e5 is max we have data for;
+Sim.combustionChamber.artificalPChamberMax = 60e5; %Up to 60e5 is max we have data for;
 Sim.combustionChamber.portLength = 130e-3; %m. "Lp" in SPAD
 %Regression rate parameters, empirical
 Sim.combustionChamber.useOxFluxRegRateEquation = 1; %If 1 then uses rdot=a*Gox^n, if 0 then uses rdot=a*Gprop^n*length^m
