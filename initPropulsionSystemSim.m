@@ -36,6 +36,12 @@ Sim.injector.singleHoleAPort1 = 0.25*pi*(Sim.injector.singleHoleDiamPort1)^2; %m
 Sim.injector.singleHoleAPort2 = 0.25*pi*(Sim.injector.singleHoleDiamPort2)^2; %m^2
 Sim.injector.singleHoleA = Sim.injector.singleHoleAPort1; %Used for local restriction injector model (probably not the one selected)
 Sim.injector.postInjectorCrossSection = 0.25*pi*(76e-2)^2;%m^2; Area used after injector for modelled reservoir
+%Used for calculating velocity after the injector for oxidiser transport
+%time lag
+Sim.injector.totalArea = (Sim.injector.singleHoleAPort1.*Sim.injector.numHolesPort1 + Sim.injector.singleHoleAPort2.*Sim.injector.numHolesPort2);
+%Ideally empirically determined. Using an arbitrary scaling for now to give
+%right order of magnitude oxidiser delay time
+Sim.injector.effectiveExitArea = 5.*Sim.injector.totalArea;
 
 %%
 %Combustion chamber properties
