@@ -32,8 +32,6 @@ outputs
     ML = {0, 'kg'}; % ML:right
     MV = {0, 'kg'}; % MV:right
     T = {0, 'K'}; %Tout:left
-    h_tank_liq = {0, "W/m^2/K"}; %hliq:bottom
-    h_tank_vap = {0, "W/m^2/K"}; %hvap:bottom
 end
 
 annotations
@@ -52,7 +50,6 @@ parameters
     heat_surface_area = {6, 'm^2'}; %Total internal surface area available for heat transfer
     tank_height = {2, "m"}; %Tank Height
     g = {9.8, "m/s^2"}; %Gravity
-    
     p_init = {0.101325, 'MPa'  }; % Initial pressure of tank
     liq_vol_frac_init = 0.5; % Initial liquid volume fraction
 end
@@ -78,15 +75,24 @@ variables (Access=private)
     mdot_BL = {0, 'kg/s'}; % Mass flow rate into port BL
     Phi_AL  = {0, 'kW'  }; % Energy flow rate into port AL
     Phi_BL  = {0, 'kW'  }; % Energy flow rate into port BL
-    mdot_AV = {0, 'kg/s'}; % Mass flow rate into port AL
-    mdot_BV = {0, 'kg/s'}; % Mass flow rate into port BL
-    Phi_AV  = {0, 'kW'  }; % Energy flow rate into port AL
-    Phi_BV  = {0, 'kW'  }; % Energy flow rate into port BL
+    mdot_AV = {0, 'kg/s'}; % Mass flow rate into port AV
+    mdot_BV = {0, 'kg/s'}; % Mass flow rate into port BV
+    Phi_AV  = {0, 'kW'  }; % Energy flow rate into port AV
+    Phi_BV  = {0, 'kW'  }; % Energy flow rate into port BV
     Q_H    = {0, 'kW'}; % Heat flow rate into port H
     u_AL        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_BL        = {1500, 'kJ/kg' }; % Specific internal energy at port B
     u_AV        = {1500, 'kJ/kg' }; % Specific internal energy at port A
     u_BV        = {1500, 'kJ/kg' }; % Specific internal energy at port B
+end
+
+% for monitoring in results explorer
+variables (Access=protected)
+    h_tank_liq = {0, "W/m^2/K"};
+    h_tank_vap = {0, "W/m^2/K"};
+    Ra_tank_vap = 0;
+    Nu_tank_liq = 0;
+    Nu_tank_vap = 0;
 end
 
 branches
@@ -170,48 +176,54 @@ equations
         %thermal conductivity 
         k_vap = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.k_TLU,  1, p_tank, interpolation=linear, extrapolation=linear);
         k_liq = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.k_TLU,  0, p_tank, interpolation=linear, extrapolation=linear);
-        %Rayleigh number 
-        Ra_vap = (cp_vap * g * beta_vap * abs(T_tank - T_external) * ...
-            (tank_height * (1 - liq_vol_fraction))^3)/(nu_vap * v_sat_vap_tank * k_vap);
+        %Rayleigh number
+        Ra_vap = ...
+            if le(liq_vol_fraction,0.99), ...
+                (cp_vap * g * beta_vap * abs(T_tank - T_external) * ...
+                (tank_height * (1 - liq_vol_fraction))^3)/(nu_vap * v_sat_vap_tank * k_vap);
+            else
+                (cp_vap * g * beta_vap * abs(T_tank - T_external) * ...
+                (tank_height * 0.01)^3)/(nu_vap * v_sat_vap_tank * k_vap);
+            end
         Ra_liq = (cp_liq * g * beta_liq * abs(T_tank - T_external) * ...
-            (tank_height * liq_vol_fraction)^3)/(nu_liq * v_sat_liq_tank * k_liq);
+            (tank_height * liq_vol_fraction)^3)/(1e-6 * nu_liq * v_sat_liq_tank * k_liq);
         
         %Nusselt number from Ra, empirical correlation
         % https://www.researchgate.net/publication/301440650_CFD_Extraction_of_Heat_Transfer_Coefficient_in_Cryogenic_Propellant_Tanks
-        c_liq = ...
-            if le(Ra_liq,1e7), ...
-                0.642;
-            elseif le(Ra_liq,1e10), ...
-                0.167;
+        Nu_liq_lower = 0.642 * Ra_liq^(1/6);
+        Nu_liq_mid = 0.167 * Ra_liq^0.25;
+        Nu_liq_upper = 0.00053 * Ra_liq^0.5;
+        % blends at crossover between Nu to remove discontinuities
+        Nu_liq = ...
+            if le(Ra_liq,1e7-1e3), ...
+                Nu_liq_lower;
+            elseif le(Ra_liq,1e7+1e3), ...
+                simscape.function.blend(Nu_liq_lower,Nu_liq_mid,1e7-500,1e7+500,Ra_liq);
+            elseif le(Ra_liq,1e10-1e3),...
+                Nu_liq_mid;
+            elseif le(Ra_liq,1e10+1e3), ...
+                simscape.function.blend(Nu_liq_mid,Nu_liq_upper,1e10-500,1e10+500,Ra_liq);
             else ...
-                0.00053;
-            end
-        n_liq = ...
-            if le(Ra_liq,1e7), ...
-                1/6;
-            elseif le(Ra_liq,1e10), ...
-                1/4;
-            else ...
-                1/2;
-            end
-        c_vap = ...
-            if le(Ra_vap,1e7), ...
-                4.5;
-            else ...
-                0.08;
-            end
-        n_vap = ...
-            if le(Ra_vap,1e7), ...
-                0;
-            else ...
-                1/4;
+                Nu_liq_upper;
             end
             
-        Nu_vap = c_vap * (Ra_vap)^(n_vap);
-        Nu_liq = c_liq * (Ra_liq)^(n_liq);
-        
+        Nu_vap_lower = 4.5;
+        Nu_vap_upper = 0.08 * Ra_vap^0.25;
+        Nu_vap = ...
+            if le(Ra_vap,1e7-1e3), ...
+                Nu_vap_lower;
+            elseif le(Ra_vap,1e7+1e3), ...
+                simscape.function.blend(Nu_vap_lower,Nu_vap_upper,1e7-500,1e7+500,Ra_vap);
+            else ...
+                Nu_vap_upper;
+            end
         %h from definition of Nu, L wetted perimeter 
-        h_vap = Nu_vap * k_vap/(tank_height * (1 - liq_vol_fraction));
+        h_vap = ...
+            if le(liq_vol_fraction,0.99), ...
+                Nu_vap * k_vap/(tank_height * (1 - liq_vol_fraction));
+            else
+                Nu_vap * k_vap/(tank_height * 0.01);
+            end
         h_liq = Nu_liq * k_liq/(tank_height * liq_vol_fraction);
     in
         liquid_vol_frac == liq_vol_fraction;
@@ -268,6 +280,9 @@ equations
         L == liq_vol_fraction; %Liquid volume fraction
         h_tank_liq == h_liq;
         h_tank_vap == h_vap;
+        Ra_tank_vap == Ra_vap;
+        Nu_tank_liq == Nu_liq;
+        Nu_tank_vap == Nu_vap;
     end
 end
 
