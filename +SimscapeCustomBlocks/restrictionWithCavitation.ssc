@@ -60,8 +60,8 @@ variables (Access=protected)
 end
 
 variables (Access=protected, ExternalAccess=none)
-    u_A        = {1500, 'kJ/kg' }; % Specific internal energy at port A
-    u_B        = {1500, 'kJ/kg' }; % Specific internal energy at port B
+    u_A        = {value={1500, 'kJ/kg' }, priority=priority.none}; % Specific internal energy at port A
+    u_B        = {value={1500, 'kJ/kg' }, priority=priority.none}; % Specific internal energy at port B
 end
 
 branches
