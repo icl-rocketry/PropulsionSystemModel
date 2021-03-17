@@ -35,7 +35,7 @@ Sim.injector.injectorDepth = 5e-3; %m
 % Sim.injector.numHolesPort2 = 7;
 % Sim.injector.singleHoleAPort1 = 0.25*pi*(Sim.injector.singleHoleDiamPort1)^2; %m^2
 % Sim.injector.singleHoleAPort2 = 0.25*pi*(Sim.injector.singleHoleDiamPort2)^2; %m^2
-%For mdot ~0.467kg/s @10 bar dP (OF 8, 30 bar chamber, Isp 200, 1kN)
+%For mdot ~0.453kg/s (Actually ~0.467kg/s) @10 bar dP (OF 8, 30 bar chamber, Isp 200, 1kN)
 Sim.injector.singleHoleDiamPort1 = 1.5e-3; %m
 Sim.injector.singleHoleDiamPort2 = 1.5e-3; %m
 Sim.injector.numHolesPort1 = 7;
@@ -60,7 +60,7 @@ Sim.combustionChamber.rhoFuel = 993.825; %kg/m^3 (density)
 Sim.combustionChamber.combustionEfficiency = 0.95;
 Sim.combustionChamber.PChamberInit = 15e5;
 Sim.combustionChamber.artificalPChamberMax = 60e5; %Up to 60e5 is max we have data for;
-Sim.combustionChamber.portLength = 130e-3; %m. "Lp" in SPAD
+Sim.combustionChamber.portLength = 120e-3;%130e-3; %m. "Lp" in SPAD
 %Regression rate parameters, empirical
 Sim.combustionChamber.useOxFluxRegRateEquation = 1; %If 1 then uses rdot=a*Gox^n, if 0 then uses rdot=a*Gprop^n*length^m
 %McCormick et all 2005 for FR5560
