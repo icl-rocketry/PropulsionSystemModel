@@ -20,7 +20,12 @@ if P_cc < min(propepProps.PChamberVals) || P_cc > max(propepProps.PChamberVals)
     disp(min(propepProps.PChamberVals));
     disp("Max P_cc:");
     disp(max(propepProps.PChamberVals));
-    error(['P_cc Out of bounds (thermochem)']);
+    disp(['P_cc Out of bounds (thermochem)']);
+    if P_cc < min(propepProps.PChamberVals)
+        P_cc = min(propepProps.PChamberVals);
+    else
+        P_cc = max(propepProps.PChamberVals);
+    end
 end
 
 T_flame = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.TFlame,P_cc,OF);  % [K] 
