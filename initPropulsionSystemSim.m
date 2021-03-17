@@ -27,11 +27,19 @@ Sim.preInjectorPipe.crossSection = 0.25*pi*Sim.preInjectorPipe.diameter^2; %m^2
 
 %%
 %Injector properties
+Sim.injector.injectorDepth = 5e-3; %m
+%For mdot ~0.503kg/s @ 10 bar dP (OF 8, 30 bar chamber, Isp 180, 1kN)
+% Sim.injector.singleHoleDiamPort1 = 1.5e-3; %m
+% Sim.injector.singleHoleDiamPort2 = 1.5e-3; %m
+% Sim.injector.numHolesPort1 = 7;
+% Sim.injector.numHolesPort2 = 7;
+% Sim.injector.singleHoleAPort1 = 0.25*pi*(Sim.injector.singleHoleDiamPort1)^2; %m^2
+% Sim.injector.singleHoleAPort2 = 0.25*pi*(Sim.injector.singleHoleDiamPort2)^2; %m^2
+%For mdot ~0.467kg/s @10 bar dP (OF 8, 30 bar chamber, Isp 200, 1kN)
 Sim.injector.singleHoleDiamPort1 = 1.5e-3; %m
 Sim.injector.singleHoleDiamPort2 = 1.5e-3; %m
-Sim.injector.injectorDepth = 5e-3; %m
 Sim.injector.numHolesPort1 = 7;
-Sim.injector.numHolesPort2 = 7;
+Sim.injector.numHolesPort2 = 6;
 Sim.injector.singleHoleAPort1 = 0.25*pi*(Sim.injector.singleHoleDiamPort1)^2; %m^2
 Sim.injector.singleHoleAPort2 = 0.25*pi*(Sim.injector.singleHoleDiamPort2)^2; %m^2
 Sim.injector.singleHoleA = Sim.injector.singleHoleAPort1; %Used for local restriction injector model (probably not the one selected)
