@@ -1,0 +1,304 @@
+component simpleTankCalch
+% Simple 2 phase tank with automatic heat transfer
+% 2 phase tank with automatic heat transfer coefficient calculations from
+% https://web.stanford.edu/~cantwell/Recent_publications/Zimmerman_et_al_AIAA_2013-4045.pdf
+% This models a tank of two phase in a simple manner where it is assumed that the phases
+% are always in equilibrium (Have exactly their saturation properties and same temperature when both co-existing).
+% The liquid and vapor ports will always output liquid and vapor respectively when the tank has both phases within,
+% if one of the phases runs out then the port will instanteously jump to outputting the correct phase -
+% there is no smooth blending (currently).
+% The tank also assumes that all fluid and ports have exactly the same pressure - eg. neglects momentum or gravity
+% Port L is the current fraction of the tank volume taken up by liquid
+% Port ML is the current mass of the liquid tank contents
+% Port MV is the current mass of the vapor tank contents
+% Port T is the current temperature of the tank contents (fluid temp)
+
+nodes
+    AV = foundation.two_phase_fluid.two_phase_fluid; % AV:left
+    BV = foundation.two_phase_fluid.two_phase_fluid; % BV:right
+    AL = foundation.two_phase_fluid.two_phase_fluid; % AL:left
+    BL = foundation.two_phase_fluid.two_phase_fluid; % BL:right
+    H = foundation.thermal.thermal;                 % H:left
+    
+    Props = SimscapeCustomBlocks.customFluidDomain.extra_two_phase_fluid_props;
+end
+
+inputs
+    T_external = {298, "K"}; % Tin:left
+end
+
+outputs
+    L; % L:right
+    ML = {0, 'kg'}; % ML:right
+    MV = {0, 'kg'}; % MV:right
+    T = {0, 'K'}; %Tout:left
+end
+
+annotations
+    Icon = 'icon/nitrousTank.png';
+    AV : Side = left;
+    BV : Side = right;
+    AL : Side = left;
+    BL : Side = right;
+    Props : Side = top;
+end
+
+parameters
+    areaL = {0.01, 'm^2'}; % Cross-sectional area at liquid ports
+    areaV = {0.01, 'm^2'}; %Cross-sectional area at vapour ports
+    tank_volume = {2, 'm^3'}; %Internal volume of tank
+    heat_surface_area = {6, 'm^2'}; %Total internal surface area available for heat transfer
+    tank_height = {2, "m"}; %Tank Height
+    g = {9.8, "m/s^2"}; %Gravity
+    p_init = {0.101325, 'MPa'  }; % Initial pressure of tank
+    liq_vol_frac_init = 0.5; % Initial liquid volume fraction
+end
+
+parameters (Access=private)
+    %Calculate approximate (but wrong) initial state from single bulk fluid u and v
+    energy_spec = foundation.enum.energy_spec.void_fraction;
+    [u_calc_val, unorm_calc, exitflag] = simscape.library.two_phase_fluid.internalEnergy( ...
+        value(p_init, 'MPa'), value({293.15,   'K'    }, 'K'), 0.5, 1-liq_vol_frac_init, value({1500,     'kJ/kg'}, 'kJ/kg'), ...
+        value({1500,     'kJ/kg'}, 'kJ/kg'), energy_spec, value(AL.u_min, 'kJ/kg'), value(AL.u_max, 'kJ/kg'), ...
+        AL.unorm_TLU, value(AL.p_TLU, 'MPa'), value(AL.v_TLU, 'm^3/kg'), value(AL.T_TLU, 'K'), ...
+        value(AL.u_sat_liq_TLU, 'kJ/kg'), value(AL.u_sat_vap_TLU, 'kJ/kg'));
+    u_tank_init = {u_calc_val, 'kJ/kg'}; % Initial specific internal energy
+    v_tank_init = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.v_TLU, unorm_calc, p_init, interpolation=linear, extrapolation=linear); % Initial specific volume
+end
+
+variables (Access=private)   
+    liquid_vol_frac = {value = liq_vol_frac_init, priority = priority.high};
+    totalFluidMass = {value = tank_volume/v_tank_init, priority = priority.none}; %Will get adjusted at start so initial volume frac is as specified
+    p_tank = {value = p_init, priority = priority.high};
+    u_tank = {value = u_tank_init, priority = priority.none}; %Will get adjusted at start to correct value
+    mdot_AL = {0, 'kg/s'}; % Mass flow rate into port AL
+    mdot_BL = {0, 'kg/s'}; % Mass flow rate into port BL
+    Phi_AL  = {0, 'kW'  }; % Energy flow rate into port AL
+    Phi_BL  = {0, 'kW'  }; % Energy flow rate into port BL
+    mdot_AV = {0, 'kg/s'}; % Mass flow rate into port AV
+    mdot_BV = {0, 'kg/s'}; % Mass flow rate into port BV
+    Phi_AV  = {0, 'kW'  }; % Energy flow rate into port AV
+    Phi_BV  = {0, 'kW'  }; % Energy flow rate into port BV
+    Q_H    = {0, 'kW'}; % Heat flow rate into port H
+    u_AL        = {1500, 'kJ/kg' }; % Specific internal energy at port A
+    u_BL        = {1500, 'kJ/kg' }; % Specific internal energy at port B
+    u_AV        = {1500, 'kJ/kg' }; % Specific internal energy at port A
+    u_BV        = {1500, 'kJ/kg' }; % Specific internal energy at port B
+end
+
+% for monitoring in results explorer
+variables (Access=protected)
+    h_tank_liq = {0, "W/m^2/K"};
+    h_tank_vap = {0, "W/m^2/K"};
+    Ra_tank_vap = 0;
+    Nu_tank_liq = 0;
+    Nu_tank_vap = 0;
+end
+
+branches
+    mdot_AL : AL.mdot -> *;
+    mdot_BL : BL.mdot -> *;
+    Phi_AL  : AL.Phi  -> *;
+    Phi_BL  : BL.Phi  -> *;
+    mdot_AV : AV.mdot -> *;
+    mdot_BV : BV.mdot -> *;
+    Phi_AV  : AV.Phi  -> *;
+    Phi_BV  : BV.Phi  -> *;
+    Q_H    : H.Q    -> *;
+end
+
+equations    
+    let
+        % Properties for when tank is treated as one bulk fluid (Eg. when not saturated)
+        unorm_tank = foundation.two_phase_fluid.normalized_internal_energy(u_tank, p_tank, ...
+            AL.u_min, AL.u_max, AL.p_TLU, AL.u_sat_liq_TLU, AL.u_sat_vap_TLU);
+        T_whole_tank = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.T_TLU, unorm_tank, p_tank, interpolation=linear, extrapolation=linear);
+        X_whole_tank = simscape.function.limit(unorm_tank, 0, 1, false); %Vapour quality for when whole tank is one substance
+        v_whole_tank = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.v_TLU, unorm_tank, p_tank, interpolation=linear, extrapolation=linear);
+        
+        % Saturation properties
+        v_sat_liq_tank  = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.v_TLU,  0, p_tank, interpolation=linear, extrapolation=linear);
+        v_sat_vap_tank  = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.v_TLU,  1, p_tank, interpolation=linear, extrapolation=linear);
+        u_sat_liq_tank = tablelookup(AL.p_TLU, AL.u_sat_liq_TLU, p_tank, interpolation=linear, extrapolation=linear);
+        u_sat_vap_tank = tablelookup(AL.p_TLU, AL.u_sat_vap_TLU, p_tank, interpolation=linear, extrapolation=linear);
+        T_sat_liq_tank = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.T_TLU, 0, p_tank, interpolation=linear, extrapolation=linear);
+        
+        m_liq_sat = (tank_volume - totalFluidMass * v_sat_vap_tank) / (v_sat_liq_tank - v_sat_vap_tank);
+        m_vap_sat = (tank_volume - totalFluidMass * v_sat_liq_tank) / (v_sat_vap_tank - v_sat_liq_tank);
+        is_sat = m_liq_sat>0 && m_vap_sat>0;
+        is_all_liq = is_sat == 0 && X_whole_tank < 0.05;
+        is_all_vap = is_sat == 0 && is_all_liq == 0;
+        
+        %Specific volumes in liq and vap regions
+        v_Liq = ...
+            if is_sat, ...
+                v_sat_liq_tank
+            else ...
+                v_whole_tank
+            end;
+        v_Vap = ...
+            if is_sat, ...
+                v_sat_vap_tank
+            else ...
+                v_whole_tank
+            end;
+        T_tank = ...
+            if is_sat, ...
+                T_sat_liq_tank
+            else ...
+                T_whole_tank
+            end;
+            
+        m_liq = is_sat * m_liq_sat + is_all_liq * totalFluidMass;
+        m_vap = is_sat * m_vap_sat + is_all_vap * totalFluidMass;
+                
+        vol_Vapor = m_vap * v_Vap;
+        vol_Liq = m_liq * v_Liq;
+        
+        liq_vol_fraction = vol_Liq / tank_volume;
+        
+        %Velocity at ports
+        velocity_AL = (mdot_AL * v_Liq) / areaL;
+        velocity_BL = (mdot_BL * v_Liq) / areaL;
+        velocity_AV = (mdot_AV * v_Vap) / areaV;
+        velocity_BV = (mdot_BV * v_Vap) / areaV;
+        
+        %interpolates a series of constants to use to calculate Q
+        %coefficients of thermal expansion
+        beta_vap = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.beta_TLU, 1, p_tank, interpolation=linear, extrapolation=linear);
+        beta_liq = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.beta_TLU, 0, p_tank, interpolation=linear, extrapolation=linear);
+        %heat capacity
+        cp_vap = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, 1, p_tank, interpolation=linear, extrapolation=linear);
+        cp_liq = tablelookup(Props.unorm_TLU, Props.p_TLU, Props.Cp_TLU, 0, p_tank, interpolation=linear, extrapolation=linear);
+        %kinematic viscosity
+        nu_vap = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.nu_TLU,  1, p_tank, interpolation=linear, extrapolation=linear);
+        nu_liq = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.nu_TLU,  0, p_tank, interpolation=linear, extrapolation=linear);
+        %thermal conductivity 
+        k_vap = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.k_TLU,  1, p_tank, interpolation=linear, extrapolation=linear);
+        k_liq = tablelookup(AL.unorm_TLU, AL.p_TLU, AL.k_TLU,  0, p_tank, interpolation=linear, extrapolation=linear);
+        %Rayleigh number
+        Ra_vap = ...
+            if le(liq_vol_fraction,0.99), ...
+                (cp_vap * g * beta_vap * abs(T_tank - T_external) * ...
+                (tank_height * (1 - liq_vol_fraction))^3)/(nu_vap * v_sat_vap_tank * k_vap);
+            else
+                (cp_vap * g * beta_vap * abs(T_tank - T_external) * ...
+                (tank_height * 0.01)^3)/(nu_vap * v_sat_vap_tank * k_vap);
+            end
+        Ra_liq = (cp_liq * g * beta_liq * abs(T_tank - T_external) * ...
+            (tank_height * liq_vol_fraction)^3)/(1e-6 * nu_liq * v_sat_liq_tank * k_liq);
+        
+        %Nusselt number from Ra, empirical correlation
+        % https://www.researchgate.net/publication/301440650_CFD_Extraction_of_Heat_Transfer_Coefficient_in_Cryogenic_Propellant_Tanks
+        Nu_liq_lower = 0.642 * Ra_liq^(1/6);
+        Nu_liq_mid = 0.167 * Ra_liq^0.25;
+        Nu_liq_upper = 0.00053 * Ra_liq^0.5;
+        % blends at crossover between Nu to remove discontinuities
+        Nu_liq = ...
+            if le(Ra_liq,1e7-1e3), ...
+                Nu_liq_lower;
+            elseif le(Ra_liq,1e7+1e3), ...
+                simscape.function.blend(Nu_liq_lower,Nu_liq_mid,1e7-500,1e7+500,Ra_liq);
+            elseif le(Ra_liq,1e10-1e3),...
+                Nu_liq_mid;
+            elseif le(Ra_liq,1e10+1e3), ...
+                simscape.function.blend(Nu_liq_mid,Nu_liq_upper,1e10-500,1e10+500,Ra_liq);
+            else ...
+                Nu_liq_upper;
+            end
+            
+        Nu_vap_lower = 4.5;
+        Nu_vap_upper = 0.08 * Ra_vap^0.25;
+        Nu_vap = ...
+            if le(Ra_vap,1e7-1e3), ...
+                Nu_vap_lower;
+            elseif le(Ra_vap,1e7+1e3), ...
+                simscape.function.blend(Nu_vap_lower,Nu_vap_upper,1e7-500,1e7+500,Ra_vap);
+            else ...
+                Nu_vap_upper;
+            end
+        %h from definition of Nu, L wetted perimeter 
+        h_vap = ...
+            if le(liq_vol_fraction,0.99), ...
+                Nu_vap * k_vap/(tank_height * (1 - liq_vol_fraction));
+            else
+                Nu_vap * k_vap/(tank_height * 0.01);
+            end
+        h_liq = Nu_liq * k_liq/(tank_height * liq_vol_fraction);
+    in
+        liquid_vol_frac == liq_vol_fraction;
+        
+        if is_sat
+            %Total energy need to be sum of energy from each phase
+            u_sat_liq_tank * m_liq_sat + u_sat_vap_tank * m_vap_sat == u_tank * totalFluidMass;
+        else
+            %Density of single fluid phase needs to be correct
+            v_whole_tank == tank_volume / totalFluidMass;
+        end
+        
+        %Mass conservation
+        der(totalFluidMass) == mdot_AL + mdot_BL + mdot_AV + mdot_BV;
+        
+        % Energy conservation
+        totalFluidMass*der(u_tank) + (mdot_AL + mdot_BL + mdot_AV + mdot_BV)*u_tank ...
+            == Phi_AL + Phi_BL + Phi_AV + Phi_BV + Q_H;
+        
+        % Heat transfer between the tank wall and the fluid
+        Q_H == (liq_vol_fraction) * h_liq * heat_surface_area * (H.T - T_tank) + ...
+            (1-liq_vol_fraction) * h_vap * heat_surface_area * (H.T - T_tank);
+        
+        % Equal pressure everywhere
+        AL.p == p_tank;
+        BL.p == p_tank;
+        AV.p == p_tank;
+        BV.p == p_tank;
+        
+        % Energy flow rates through ports
+        convection_AL.ht_I == u_AL + p_tank*v_Liq + (velocity_AL)^2/2;
+        convection_BL.ht_I == u_BL + p_tank*v_Liq + (velocity_BL)^2/2;
+        convection_AV.ht_I == u_AV + p_tank*v_Vap + (velocity_AV)^2/2;
+        convection_BV.ht_I == u_BV + p_tank*v_Vap + (velocity_BV)^2/2;
+        
+        % Equate variables for internal components that calculate energy convection at ports A and B
+        convection_AL.mdot == mdot_AL;
+        convection_AL.Phi  == Phi_AL;
+        convection_BL.mdot == mdot_BL;
+        convection_BL.Phi  == Phi_BL;
+        convection_AV.mdot == mdot_AV;
+        convection_AV.Phi  == Phi_AV;
+        convection_BV.mdot == mdot_BV;
+        convection_BV.Phi  == Phi_BV;
+        AV.u == u_AV;
+        BV.u == u_BV;
+        AL.u == u_AL;
+        BL.u == u_BL;
+        
+        % Set output port values
+        ML == m_liq;
+        MV == m_vap;
+        T == T_tank;
+        L == liq_vol_fraction; %Liquid volume fraction
+        h_tank_liq == h_liq;
+        h_tank_vap == h_vap;
+        Ra_tank_vap == Ra_vap;
+        Nu_tank_liq == Nu_liq;
+        Nu_tank_vap == Nu_vap;
+    end
+end
+
+% Internal components that calculate energy convection at ports A and B
+components (ExternalAccess=none)
+    convection_AL = foundation.two_phase_fluid.port_convection(flow_area = areaL, length_scale = sqrt(4*areaL/pi));
+    convection_BL = foundation.two_phase_fluid.port_convection(flow_area = areaL, length_scale = sqrt(4*areaL/pi));
+    convection_AV = foundation.two_phase_fluid.port_convection(flow_area = areaV, length_scale = sqrt(4*areaV/pi));
+    convection_BV = foundation.two_phase_fluid.port_convection(flow_area = areaV, length_scale = sqrt(4*areaV/pi));
+end
+
+connections
+    connect(AL, convection_AL.port)
+    connect(BL, convection_BL.port)
+    connect(AV, convection_AV.port)
+    connect(BV, convection_BV.port)
+end
+    
+end
