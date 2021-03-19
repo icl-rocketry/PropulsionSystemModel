@@ -90,4 +90,12 @@ Sim.combustionChamber.initialFuelWebThickness = grainOuterDiam-Sim.combustionCha
 %Nozzle properties
 Sim.nozzle.throatArea = 2.4575e-4; %m^2 (4.07e-5 for Pablo)
 Sim.nozzle.expansionRatio = 5.15;%2592; % (2.6 for Pablo) <-- design point gamma = 1.1484 at P = 30bar and OF = 8
-Sim.nozzle.thrustEfficiencyFactor = 0.9;%0.9; %lambda
+
+%Applied as a direct scaling to thrust calculated (Includes effect of divergence, extra real gas effects, non ideal expansion, friction, etc...):
+Sim.nozzle.thrustEfficiencyFactor = 0.9; %This value may be too low (conservative), check Isp predictions against other data
+
+%RPA predicts N2O and C34H70 (Paraffin kerawax we think) Isp of ~220 with
+%default efficiencies and truncated ideal bell nozzle, ~230 ideal. 
+%Using the below thrust efficiency factor approx matches this at the time
+%of writing
+%Sim.nozzle.thrustEfficiencyFactor = 0.97;
