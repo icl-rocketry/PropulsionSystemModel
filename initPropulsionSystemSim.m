@@ -6,7 +6,8 @@ applyReceiverAccumulatorPatch();
 %Combustion products data for thermochem (load once). 
 %In global workspace so can be found by combustion products thermo block. 
 %(Maybe there's a cleaner way to do this with masks??)
-load('+HybridMotor/propepPropsKeraxN2O_modified.mat');
+%load('+HybridMotor/propepPropsKeraxN2O_modified.mat');
+load('+HybridMotor/propepPropsKeraxN2O.mat');
 Sim.nitrousFluidTable = getNitrousFluidTable(); %Nitrous fluid properties for two phase flow model
 Sim.extraNitrousPropsTable = getExtraNitrousFluidTable();
 Sim.PAmbient = 101325; %Pa
@@ -57,7 +58,7 @@ Sim.combustionChamber.preCombustionChamberLength = 38e-3; %m
 Sim.combustionChamber.OFRatioInitial = 6.5;
 Sim.combustionChamber.mdotOxInitial = Sim.pipe.mdotOxInitial; %kg/s
 Sim.combustionChamber.rhoFuel = 993.825; %kg/m^3 (density)
-Sim.combustionChamber.combustionEfficiency = 0.945; %Scaled so our ideal c* is around the range of RPA prediction
+Sim.combustionChamber.combustionEfficiency = 0.9744; %Scaled applied to c*, RPA default value
 Sim.combustionChamber.PChamberInit = 15e5;
 Sim.combustionChamber.artificalPChamberMax = 60e5; %Up to 60e5 is max we have data for;
 Sim.combustionChamber.portLength = 120e-3;%130e-3; %m. "Lp" in SPAD
@@ -83,7 +84,7 @@ Sim.combustionChamber.regRateParams.m = NaN; %Unused
 %Port configuration, circular
 %Values for potentially possible pablo
 Sim.combustionChamber.initialPortDiameter = 26e-3; %m (Grain inner diam)
-grainOuterDiam = 76e-3;%63.5e-3; %m
+grainOuterDiam = 69.8e-3;%63.5e-3; %m
 Sim.combustionChamber.initialFuelWebThickness = grainOuterDiam-Sim.combustionChamber.initialPortDiameter; %m (Grain outer diam - inner diam)
 
 %%

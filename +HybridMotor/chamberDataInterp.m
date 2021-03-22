@@ -36,6 +36,9 @@ rho = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.density,P_
 isentropicExponent = interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.isentropicExponent,P_cc,OF); %p*v^k = constant for isentropic
 
 %etac is the combustion efficiency, usually about 0.95 [SPAD]
-c_star = etac*sqrt(gamma*R*T_flame)/(gamma*(2/(gamma+1))^((gamma+1)/(2*gamma-2))); %characteristic velocity [SPAD, eq 7.71]
+%Ideal c_star, use if c_star data has not been obtained from another source
+%(Eg. RPA)
+%c_star = etac*sqrt(gamma*R*T_flame)/(gamma*(2/(gamma+1))^((gamma+1)/(2*gamma-2))); %characteristic velocity [SPAD, eq 7.71]
+c_star = etac.*interp2(propepProps.PChamberVals,propepProps.OFVals,propepProps.cStar,P_cc,OF); %m/s
 
 end
