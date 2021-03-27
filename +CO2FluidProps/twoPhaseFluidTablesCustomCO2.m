@@ -808,10 +808,10 @@ end
 
 T_triple = coolpropFun('TTRIPLE', 'P', 0, 'T', 0, substance);
 
-T_min = coolpropFun('TMIN', 'P', 0, 'T', 0, substance);
-if T_min > T_triple
-    T_triple = T_min;
-end
+% T_min = coolpropFun('TMIN', 'P', 0, 'T', 0, substance);
+% if T_min > T_triple
+%     T_triple = T_min;
+% end
 
 try
     p_triple = coolpropFun('P', 'T', T_triple, 'Q', 0, substance);
