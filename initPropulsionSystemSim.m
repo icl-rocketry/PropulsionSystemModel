@@ -84,7 +84,7 @@ Sim.combustionChamber.regRateParams.m = NaN; %Unused
 %Port configuration, circular
 %Values for potentially possible pablo
 Sim.combustionChamber.initialPortDiameter = 26e-3; %m (Grain inner diam)
-grainOuterDiam = 69.8e-3;%63.5e-3; %m
+grainOuterDiam = 76e-3;%63.5e-3; %m
 Sim.combustionChamber.initialFuelWebThickness = grainOuterDiam-Sim.combustionChamber.initialPortDiameter; %m (Grain outer diam - inner diam)
 
 %%
