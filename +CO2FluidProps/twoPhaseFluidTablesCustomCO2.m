@@ -100,11 +100,12 @@ if nargin == 7
         = initialize(installPath, substance); %#ok<ASGLU>
     
     % Check that pressure is above the triple point pressure
+%     [p_crit, u_crit, p_triple] = criticalTriplePressure();
     [p_crit, u_crit, p_triple] = criticalTriplePressure();
 %     assert(pRange(1) > p_triple, ...
 %         message('physmod:simscape:utils:twoPhaseFluidTables:MinPressureGreaterThanTriple', [num2str(pRange(1)) ' MPa'], [num2str(p_triple), ' MPa'], substance))
-    assert(pRange(1) < p_crit, ...
-        message('physmod:simscape:utils:twoPhaseFluidTables:MinPressureLessThanCritical', [num2str(pRange(1)) ' MPa'], [num2str(p_crit), ' MPa'], substance))
+%     assert(pRange(1) < p_crit, ...
+%         message('physmod:simscape:utils:twoPhaseFluidTables:MinPressureLessThanCritical', [num2str(pRange(1)) ' MPa'], [num2str(p_crit), ' MPa'], substance))
     
     % Create uniform grid in transformed space
     unorm_liq = linspace(-1, 0, mLiquid)';
@@ -895,8 +896,30 @@ try
 catch errCoolProp
     try 
         clear errCoolProp
-        T = fsolve(@solveTfromU, 190);
-        
+        T = fsolve(@solveTfromU, 170);
+        uSol = coolpropFun('U', 'P', p_Pa, 'T', T, substance);
+        tempUT = [];
+        tempUP = [];
+        Tspan = linspace(100,220,1e3);
+        Pspan = linspace(8e4,5e5,1e3);
+        for i = Tspan tempUT(end+1) = coolpropFun("U", 'P', p_Pa, 'T', i, substance); end
+        for i = Pspan
+            tempUP(end+1) = coolpropFun("U", 'P', i, 'T', T, substance);
+        end
+        figure(1)
+        hold on
+        xlabel("T")
+        ylabel("U")
+        plot(Tspan,tempUT)
+        plot(T,u_Jkg,"r*")
+        hold off
+        figure(2)
+        hold on
+        xlabel("P")
+        ylabel("U")
+        plot(Pspan,tempUP)
+        plot(p_Pa,u_Jkg,"r*")
+        hold off
         rho = coolpropFun('D', 'P', p_Pa, 'T', T, substance);
         s   = coolpropFun('S', 'P', p_Pa, 'T', T, substance);
         mu  = coolpropFun('V', 'P', p_Pa, 'T', T, substance);
@@ -928,9 +951,9 @@ v  = 1/rho;        % m^3/kg
 s  = s * 1e-3;     % kJ/(kg*K)
 % T                % K
 nu = mu/rho * 1e6; % mm^2/s
-if nu > 10
-    pass
-end
+% if nu > 10
+%     pass
+% end
 % k                % W/(m*K)
 % Pr               % --
 
